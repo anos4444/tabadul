@@ -1,0 +1,200 @@
+{
+ "doctype": "DocType",
+ "name": "Share Package",
+ "module": "Tabadul",
+ "engine": "InnoDB",
+ "track_changes": 1,
+ "autoname": "format:SHR-{YYYY}-{#####}",
+ "naming_rule": "Expression",
+ "title_field": "title",
+ "field_order": [
+  "sec_main",
+  "title",
+  "purpose",
+  "col_m",
+  "linked_doctype",
+  "linked_name",
+  "sec_content",
+  "folder_path",
+  "files",
+  "sec_policy",
+  "expires_on",
+  "download_limit",
+  "col_p",
+  "allow_download",
+  "status",
+  "sec_recipients",
+  "recipients",
+  "sec_audit",
+  "created_by_user",
+  "created_on",
+  "col_a",
+  "cancelled_by",
+  "cancelled_on",
+  "cancel_reason",
+  "audit_html"
+ ],
+ "fields": [
+  {
+   "fieldname": "sec_main",
+   "fieldtype": "Section Break",
+   "label": "الحزمة"
+  },
+  {
+   "fieldname": "title",
+   "fieldtype": "Data",
+   "label": "العنوان",
+   "reqd": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "purpose",
+   "fieldtype": "Small Text",
+   "label": "الغرض"
+  },
+  {
+   "fieldname": "col_m",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "linked_doctype",
+   "fieldtype": "Link",
+   "options": "DocType",
+   "label": "مرتبطة بـ"
+  },
+  {
+   "fieldname": "linked_name",
+   "fieldtype": "Dynamic Link",
+   "options": "linked_doctype",
+   "label": "السجل"
+  },
+  {
+   "fieldname": "sec_content",
+   "fieldtype": "Section Break",
+   "label": "المحتوى"
+  },
+  {
+   "fieldname": "folder_path",
+   "fieldtype": "Data",
+   "label": "مسار المجلد",
+   "description": "شارك مجلدًا كاملًا، أو اترك الحقل واذكر الملفات أدناه"
+  },
+  {
+   "fieldname": "files",
+   "fieldtype": "Table",
+   "options": "Share Package File",
+   "label": "ملفات محددة"
+  },
+  {
+   "fieldname": "sec_policy",
+   "fieldtype": "Section Break",
+   "label": "السياسة"
+  },
+  {
+   "fieldname": "expires_on",
+   "fieldtype": "Date",
+   "label": "تنتهي في",
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "download_limit",
+   "fieldtype": "Int",
+   "label": "حد التنزيل",
+   "description": "0 = بلا حد"
+  },
+  {
+   "fieldname": "col_p",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "allow_download",
+   "fieldtype": "Check",
+   "label": "السماح بالتنزيل",
+   "default": "1",
+   "description": "عند الإلغاء: عرض فقط. لا يمنع التقاط الشاشة"
+  },
+  {
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "options": "\nمسودة\nنشطة\nمنتهية\nملغاة",
+   "label": "الحالة",
+   "default": "مسودة",
+   "read_only": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "sec_recipients",
+   "fieldtype": "Section Break",
+   "label": "المستلمون"
+  },
+  {
+   "fieldname": "recipients",
+   "fieldtype": "Table",
+   "options": "Share Package Recipient",
+   "label": "المستلمون",
+   "reqd": 1
+  },
+  {
+   "fieldname": "sec_audit",
+   "fieldtype": "Section Break",
+   "label": "الأثر",
+   "collapsible": 1
+  },
+  {
+   "fieldname": "created_by_user",
+   "fieldtype": "Link",
+   "options": "User",
+   "label": "أنشأها",
+   "read_only": 1
+  },
+  {
+   "fieldname": "created_on",
+   "fieldtype": "Datetime",
+   "label": "تاريخ الإنشاء",
+   "read_only": 1
+  },
+  {
+   "fieldname": "col_a",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "cancelled_by",
+   "fieldtype": "Link",
+   "options": "User",
+   "label": "ألغاها",
+   "read_only": 1
+  },
+  {
+   "fieldname": "cancelled_on",
+   "fieldtype": "Datetime",
+   "label": "تاريخ الإلغاء",
+   "read_only": 1
+  },
+  {
+   "fieldname": "cancel_reason",
+   "fieldtype": "Small Text",
+   "label": "سبب الإلغاء",
+   "read_only": 1
+  },
+  {
+   "fieldname": "audit_html",
+   "fieldtype": "HTML",
+   "label": "سجل المشاركة"
+  }
+ ],
+ "permissions": [
+  {
+   "role": "System Manager",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "report": 1,
+   "share": 1
+  }
+ ]
+}

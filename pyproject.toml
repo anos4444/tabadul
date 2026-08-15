@@ -1,0 +1,11 @@
+[project]
+name = "tabadul"
+authors = [{name = "AAA Consulting", email = "a.abdulla@aaacons.com"}]
+description = "Drive a Nextcloud from Frappe: packaged, expiring, revocable external file shares."
+requires-python = ">=3.10"
+version = "0.1.0"
+dependencies = ["requests>=2.31"]
+
+[build-system]
+requires = ["flit_core >=3.4,<4"]
+build-backend = "flit_core.buildapi"

@@ -1,0 +1,104 @@
+{
+ "doctype": "DocType",
+ "name": "Nextcloud Settings",
+ "module": "Tabadul",
+ "issingle": 1,
+ "custom": 0,
+ "engine": "InnoDB",
+ "track_changes": 1,
+ "field_order": [
+  "sec_conn",
+  "base_url",
+  "service_user",
+  "app_password",
+  "col_conn",
+  "verify_tls",
+  "connection_status",
+  "sec_defaults",
+  "default_expiry_days",
+  "default_download_limit",
+  "col_def",
+  "default_allow_download"
+ ],
+ "fields": [
+  {
+   "fieldname": "sec_conn",
+   "fieldtype": "Section Break",
+   "label": "الاتصال"
+  },
+  {
+   "fieldname": "base_url",
+   "fieldtype": "Data",
+   "label": "عنوان الخادم",
+   "reqd": 1,
+   "description": "https://example.com — بدون / في النهاية"
+  },
+  {
+   "fieldname": "service_user",
+   "fieldtype": "Data",
+   "label": "حساب الخدمة",
+   "reqd": 1
+  },
+  {
+   "fieldname": "app_password",
+   "fieldtype": "Password",
+   "label": "كلمة مرور التطبيق",
+   "reqd": 1,
+   "description": "app-password، وليس كلمة مرور الحساب"
+  },
+  {
+   "fieldname": "col_conn",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "verify_tls",
+   "fieldtype": "Check",
+   "label": "التحقق من شهادة TLS",
+   "default": "1",
+   "description": "لا تُعطّله إلا على خادم اختبار"
+  },
+  {
+   "fieldname": "connection_status",
+   "fieldtype": "Small Text",
+   "label": "حالة آخر اتصال",
+   "read_only": 1
+  },
+  {
+   "fieldname": "sec_defaults",
+   "fieldtype": "Section Break",
+   "label": "الإعدادات الافتراضية"
+  },
+  {
+   "fieldname": "default_expiry_days",
+   "fieldtype": "Int",
+   "label": "مدة الصلاحية (أيام)",
+   "default": "14"
+  },
+  {
+   "fieldname": "default_download_limit",
+   "fieldtype": "Int",
+   "label": "حد التنزيل الافتراضي",
+   "default": "0",
+   "description": "0 = بلا حد"
+  },
+  {
+   "fieldname": "col_def",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "default_allow_download",
+   "fieldtype": "Check",
+   "label": "السماح بالتنزيل افتراضيًا",
+   "default": "1"
+  }
+ ],
+ "permissions": [
+  {
+   "role": "System Manager",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "delete": 1
+  }
+ ]
+}

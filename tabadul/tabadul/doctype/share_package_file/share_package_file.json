@@ -1,0 +1,22 @@
+{
+ "doctype": "DocType",
+ "name": "Share Package File",
+ "module": "Tabadul",
+ "istable": 1,
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "remote_path"
+ ],
+ "fields": [
+  {
+   "fieldname": "remote_path",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "المسار على الخادم",
+   "reqd": 1,
+   "description": "مثال: /الملفات/تقرير.pdf"
+  }
+ ],
+ "permissions": []
+}

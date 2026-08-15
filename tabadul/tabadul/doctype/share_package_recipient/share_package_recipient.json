@@ -1,0 +1,104 @@
+{
+ "doctype": "DocType",
+ "name": "Share Package Recipient",
+ "module": "Tabadul",
+ "istable": 1,
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "full_name",
+  "email",
+  "organisation",
+  "phone",
+  "col_r",
+  "status",
+  "nc_share_id",
+  "nc_share_token",
+  "share_url",
+  "password_sent_via",
+  "download_count",
+  "error_message"
+ ],
+ "fields": [
+  {
+   "fieldname": "full_name",
+   "fieldtype": "Data",
+   "label": "الاسم",
+   "in_list_view": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "email",
+   "fieldtype": "Data",
+   "options": "Email",
+   "label": "البريد الإلكتروني",
+   "in_list_view": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "organisation",
+   "fieldtype": "Data",
+   "label": "الجهة",
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "phone",
+   "fieldtype": "Data",
+   "label": "الجوال",
+   "description": "قناة تسليم كلمة المرور"
+  },
+  {
+   "fieldname": "col_r",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "options": "\nلم تُنشأ\nنشطة\nبانتظار التسليم اليدوي\nملغاة\nفشل",
+   "label": "الحالة",
+   "read_only": 1,
+   "in_list_view": 1,
+   "default": "لم تُنشأ"
+  },
+  {
+   "fieldname": "nc_share_id",
+   "fieldtype": "Data",
+   "label": "معرّف المشاركة",
+   "read_only": 1
+  },
+  {
+   "fieldname": "nc_share_token",
+   "fieldtype": "Data",
+   "label": "الرمز",
+   "read_only": 1,
+   "hidden": 1
+  },
+  {
+   "fieldname": "share_url",
+   "fieldtype": "Small Text",
+   "label": "الرابط",
+   "read_only": 1
+  },
+  {
+   "fieldname": "password_sent_via",
+   "fieldtype": "Select",
+   "options": "\nلم تُرسل\nواتساب\nرسالة نصية\nهاتف\nيدويًا",
+   "label": "قناة تسليم كلمة المرور",
+   "default": "لم تُرسل"
+  },
+  {
+   "fieldname": "download_count",
+   "fieldtype": "Int",
+   "label": "عدد التنزيلات",
+   "read_only": 1,
+   "description": "عدد فقط — المنصة لا توفّر سجلًا لمن نزّل"
+  },
+  {
+   "fieldname": "error_message",
+   "fieldtype": "Small Text",
+   "label": "الخطأ",
+   "read_only": 1
+  }
+ ],
+ "permissions": []
+}
