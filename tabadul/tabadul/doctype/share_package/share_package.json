@@ -45,12 +45,14 @@
    "fieldtype": "Data",
    "label": "العنوان",
    "reqd": 1,
-   "in_list_view": 1
+   "in_list_view": 1,
+   "in_global_search": 1
   },
   {
    "fieldname": "purpose",
    "fieldtype": "Small Text",
-   "label": "الغرض"
+   "label": "الغرض",
+   "in_global_search": 1
   },
   {
    "fieldname": "col_m",
@@ -77,7 +79,8 @@
    "fieldname": "folder_path",
    "fieldtype": "Data",
    "label": "مسار المجلد",
-   "description": "شارك مجلدًا كاملًا، أو اترك الحقل واذكر الملفات أدناه"
+   "description": "شارك مجلدًا كاملًا، أو اترك الحقل واذكر الملفات أدناه",
+   "in_global_search": 1
   },
   {
    "fieldname": "files",

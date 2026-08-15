@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img"
+     aria-label="Tabadul — secure sharing">
+  <title>Tabadul</title>
+  <!-- Deliberately NOT in any client's brand colours: this app is
+       client-neutral and may sit beside several of them. A cool teal keeps it
+       distinct from the Amanah green next to it on the apps screen. -->
+  <defs>
+    <linearGradient id="tabadulBg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0E7C86"/>
+      <stop offset="1" stop-color="#0A5B63"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="512" height="512" rx="112" fill="url(#tabadulBg)"/>
+
+  <!-- Share topology: one source handing to two recipients. The whole point of
+       the app is per-recipient separation, so the glyph shows two distinct
+       endpoints rather than a single broadcast arrow. -->
+  <g fill="none" stroke="#FFFFFF" stroke-width="26"
+     stroke-linecap="round" stroke-linejoin="round">
+    <path d="M188 256 L318 176"/>
+    <path d="M188 256 L318 336"/>
+  </g>
+  <circle cx="176" cy="256" r="44" fill="#FFFFFF"/>
+  <circle cx="330" cy="168" r="36" fill="#FFFFFF"/>
+  <circle cx="330" cy="344" r="36" fill="#FFFFFF"/>
+
+  <!-- Padlock: the shares are password-protected and expiring, not open links -->
+  <g transform="translate(300,286)">
+    <rect x="0" y="34" width="104" height="78" rx="16" fill="#0A5B63"
+          stroke="#FFFFFF" stroke-width="16"/>
+    <path d="M22 34 V18 a30 30 0 0 1 60 0 V34" fill="none"
+          stroke="#FFFFFF" stroke-width="16" stroke-linecap="round"/>
+  </g>
+</svg>
