@@ -9,3 +9,14 @@ dependencies = ["requests>=2.31"]
 [build-system]
 requires = ["flit_core >=3.4,<4"]
 build-backend = "flit_core.buildapi"
+
+# Frappe Cloud and `bench get-app` read this to decide which bench versions the
+# app may be installed on, and refuse the app outright when it is absent.
+#
+# v15 and v16 both carry the storage seam this app depends on — the
+# get_hook_method("write_file") and get_hook_method("delete_file_data_content")
+# calls inside File.save_file(), plus get_content/get_full_path/is_remote_file.
+# Verified against v16.25 source on a running bench and against the version-15
+# branch. v14 and earlier are untested and deliberately excluded.
+[tool.bench.frappe-dependencies]
+frappe = ">=15.0.0,<17.0.0"

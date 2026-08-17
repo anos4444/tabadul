@@ -57,6 +57,10 @@ quietly widen access.
 
 ### Trying it
 
+Supports **Frappe v15 and v16**, declared in `pyproject.toml` under
+`[tool.bench.frappe-dependencies]`. Frappe Cloud refuses an app without that
+key, and both versions carry the storage seam this app hooks into.
+
 ```bash
 bench get-app https://github.com/anos4444/tabadul.git
 bench --site <site> install-app tabadul
