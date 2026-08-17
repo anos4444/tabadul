@@ -170,6 +170,53 @@ class TestMappingDoesNotBlockDeletes(unittest.TestCase):
             self.fail("a stored-attachment mapping blocked the delete: %s" % e)
 
 
+class TestDeduplication(unittest.TestCase):
+    """Frappe reuses an identical file rather than storing it twice.
+
+    save_file() finds a File with the same content_hash, copies its file_url
+    and never calls write_file(). The new attachment then points at another
+    document's stored object. Two things must hold: it gets its own mapping,
+    and retiring one attachment must not pull the object out from under the
+    other.
+    """
+
+    def setUp(self):
+        if not getattr(frappe.local, "site", None):
+            self.skipTest("no site bound")
+
+    def test_shared_object_is_not_retired_while_referenced(self):
+        from tabadul.attachments import stored_path
+
+        shared = "/Frappe/Test/shared-object.txt"
+        files = frappe.get_all("File", limit=2, pluck="name")
+        if len(files) < 2:
+            self.skipTest("need two File rows to simulate a shared object")
+
+        rows = []
+        for f in files[:2]:
+            if frappe.db.exists("Nextcloud Stored File", {"file": f}):
+                continue
+            rows.append(frappe.get_doc({
+                "doctype": "Nextcloud Stored File",
+                "file": f, "remote_path": shared,
+            }).insert(ignore_permissions=True))
+        if len(rows) < 2:
+            self.skipTest("could not create two mappings on one path")
+
+        others = frappe.db.count("Nextcloud Stored File",
+                                 {"remote_path": shared, "file": ["!=", rows[0].file]})
+        self.assertGreater(others, 0,
+                           "guard would not fire; the shared object would be retired")
+
+        # NEGATIVE CONTROL: with only one reference left, the guard must NOT fire,
+        # otherwise nothing would ever be archived at all.
+        rows[1].delete(ignore_permissions=True)
+        remaining = frappe.db.count("Nextcloud Stored File",
+                                    {"remote_path": shared, "file": ["!=", rows[0].file]})
+        self.assertEqual(remaining, 0, "guard would block a legitimate retirement")
+        rows[0].delete(ignore_permissions=True)
+
+
 class TestDownloadPermission(unittest.TestCase):
     """The proxy is the security boundary; this is the test that matters most.
 

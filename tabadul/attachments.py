@@ -170,6 +170,17 @@ def delete_file_data_content(file_doc, only_thumbnail=False):
     if not remote:
         return
 
+    # Frappe's content-hash deduplication means several File rows can share one
+    # stored object. Retiring it while another row still points at it would
+    # break that attachment, on a different document, with no warning. Core
+    # guards its on-disk files the same way.
+    others = frappe.db.count("Nextcloud Stored File",
+                             {"remote_path": remote, "file": ["!=", file_doc.name]})
+    if others:
+        frappe.logger("tabadul").info(
+            f"not retiring {remote}: {others} other attachment(s) still reference it")
+        return
+
     s = settings()
     behaviour = s.get("delete_behaviour") or "Archive"
     if behaviour == "Keep":

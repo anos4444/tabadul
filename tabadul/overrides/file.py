@@ -62,6 +62,28 @@ class NextcloudFile(File):
         return super().validate_file_url()
 
 
+
+def _adopt_deduplicated(doc):
+    """Return the remote path this File was deduplicated onto, or None."""
+    if not is_remote(doc):
+        return None
+    if frappe.db.exists("Nextcloud Stored File", {"file": doc.name}):
+        return None
+
+    source = (doc.file_url or "").split("?file=")[-1]
+    if not source or source == doc.name:
+        return None
+
+    remote = stored_path(source)
+    if not remote:
+        return None
+
+    doc.db_set("file_url", f"{PROXY_ROUTE}?file={frappe.utils.quoted(doc.name)}",
+               update_modified=False)
+    doc.file_url = f"{PROXY_ROUTE}?file={frappe.utils.quoted(doc.name)}"
+    return remote
+
+
 def after_insert(doc, method=None):
     """Record where the bytes actually went.
 
@@ -72,8 +94,17 @@ def after_insert(doc, method=None):
     correct across such a change.
     """
     remote = doc.flags.get("tabadul_remote_path")
+
     if not remote:
-        return
+        # Frappe deduplicates by content hash: when an identical file already
+        # exists, save_file() reuses its file_url and never calls write_file().
+        # The new File then points at another document's stored object and has
+        # no mapping of its own, so retiring the original would break it.
+        # Give it its own mapping row against the same remote path, and its own
+        # URL, so the two are independent bookkeeping entries over one object.
+        remote = _adopt_deduplicated(doc)
+        if not remote:
+            return
 
     # Repair the URL if write_file() ran before the name was assigned.
     expected = f"{PROXY_ROUTE}?file={frappe.utils.quoted(doc.name)}"
