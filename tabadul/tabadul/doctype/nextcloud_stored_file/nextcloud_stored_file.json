@@ -47,11 +47,11 @@
   },
   {
    "fieldname": "attached_to_name",
-   "fieldtype": "Dynamic Link",
-   "options": "attached_to_doctype",
+   "fieldtype": "Data",
    "label": "Attached to name",
    "in_list_view": 1,
-   "search_index": 1
+   "search_index": 1,
+   "description": "Plain Data, deliberately. As a Dynamic Link this field made Frappe refuse to delete any document that had a stored attachment. Core's own File doctype uses Data here for the same reason."
   },
   {
    "fieldname": "is_private",

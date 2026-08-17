@@ -128,6 +128,48 @@ class TestPathTemplate(unittest.TestCase):
         self.assertIn("ABC123", out)
 
 
+class TestMappingDoesNotBlockDeletes(unittest.TestCase):
+    """A stored attachment must never make its document undeletable.
+
+    Regression: attached_to_name was declared as a Dynamic Link, and Frappe's
+    check_if_doc_is_dynamically_linked then refused to delete any document that
+    had one — enabling a rule on Employee would have made every Employee
+    permanently undeletable. Core's own File doctype uses Data here, which is
+    exactly why deleting a document with ordinary attachments works.
+    """
+
+    def setUp(self):
+        if not getattr(frappe.local, "site", None):
+            self.skipTest("no site bound")
+
+    def test_attached_to_name_is_not_a_dynamic_link(self):
+        meta = frappe.get_meta("Nextcloud Stored File")
+        field = meta.get_field("attached_to_name")
+        self.assertIsNotNone(field, "attached_to_name is missing")
+        self.assertNotEqual(
+            field.fieldtype, "Dynamic Link",
+            "attached_to_name is a Dynamic Link again; documents with stored "
+            "attachments will refuse to delete")
+
+    def test_document_with_a_stored_attachment_can_be_deleted(self):
+        # NEGATIVE CONTROL for the above: assert the behaviour, not just the
+        # schema. A future change could block deletes by another route.
+        todo = frappe.get_doc({"doctype": "ToDo",
+                               "description": "tabadul delete-block regression"}).insert()
+        frappe.get_doc({
+            "doctype": "Nextcloud Stored File",
+            "file": frappe.get_all("File", limit=1, pluck="name")[0],
+            "remote_path": "/Frappe/ToDo/%s/probe.txt" % todo.name,
+            "attached_to_doctype": "ToDo",
+            "attached_to_name": todo.name,
+        }).insert(ignore_permissions=True)
+
+        try:
+            frappe.delete_doc("ToDo", todo.name)
+        except frappe.LinkExistsError as e:
+            self.fail("a stored-attachment mapping blocked the delete: %s" % e)
+
+
 class TestDownloadPermission(unittest.TestCase):
     """The proxy is the security boundary; this is the test that matters most.
 
