@@ -3,7 +3,7 @@
  "name": "Tabadul",
  "module": "Tabadul",
  "label": "Tabadul",
- "title": "المشاركة الآمنة",
+ "title": "Tabadul",
  "icon": "share",
  "public": 1,
  "is_hidden": 0,
@@ -12,7 +12,7 @@
  "parent_page": "",
  "hide_custom": 0,
  "idx": 0,
- "content": "[{\"id\": \"hdr\", \"type\": \"header\", \"data\": {\"text\": \"<span class=\\\"h4\\\"><b>المشاركة الآمنة</b></span>\", \"col\": 12}}, {\"id\": \"sc0\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"حزم المشاركة\", \"col\": 4}}, {\"id\": \"sc1\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"إعدادات Nextcloud\", \"col\": 4}}]",
+ "content": "[{\"id\": \"hdr\", \"type\": \"header\", \"data\": {\"text\": \"<span class=\\\"h4\\\"><b>Tabadul</b></span>\", \"col\": 12}}, {\"id\": \"sc0\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Share Packages\", \"col\": 4}}, {\"id\": \"sc1\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Nextcloud Settings\", \"col\": 4}}]",
  "charts": [],
  "number_cards": [],
  "quick_lists": [],
@@ -21,14 +21,14 @@
  "links": [],
  "shortcuts": [
   {
-   "label": "حزم المشاركة",
+   "label": "Share Packages",
    "link_to": "Share Package",
    "type": "DocType",
    "color": "Blue",
    "doc_view": ""
   },
   {
-   "label": "إعدادات Nextcloud",
+   "label": "Nextcloud Settings",
    "link_to": "Nextcloud Settings",
    "type": "DocType",
    "color": "Grey",

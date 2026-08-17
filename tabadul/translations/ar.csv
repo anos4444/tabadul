@@ -1,6 +1,123 @@
-Tabadul,المشاركة الآمنة
-Share Package,حزمة مشاركة
-Share Packages,حزم المشاركة
-Share Package Recipient,مستلم حزمة المشاركة
-Share Package File,ملف حزمة المشاركة
+0 = no limit,0 = بلا حد
+A count only — the platform provides no record of who downloaded,عدد فقط — المنصة لا توفّر سجلًا لمن نزّل
+"Accepts fields of the attached document, e.g. Employee/{employee_number} - {employee_name}",يقبل حقول المستند المرتبط، مثل: Employee/{employee_number} - {employee_name}
+Active,نشطة
+Allow download,السماح بالتنزيل
+Allow download by default,السماح بالتنزيل افتراضيًا
+"An app password, not the account password",app-password، وليس كلمة مرور الحساب
+App password,كلمة مرور التطبيق
+Archive: move to the deleted folder. Delete: remove permanently. Keep: leave the file untouched.,Archive: نقل إلى مجلد المحذوفات. Delete: حذف نهائي. Keep: إبقاء الملف كما هو.
+Attached to doctype,مرتبط بنوع
+Attached to name,مرتبط بمستند
+Attachment storage,تخزين المرفقات
+Audit,الأثر
+Awaiting manual delivery,بانتظار التسليم اليدوي
+Cancellation reason,سبب الإلغاء
+Cancelled,ملغاة
+Cancelled by,ألغاها
+Cancelled on,تاريخ الإلغاء
+Connection,الاتصال
+Contents,المحتوى
+Created by,أنشأها
+Created on,تاريخ الإنشاء
+Default download limit,حد التنزيل الافتراضي
+Default path template,قالب المسار الافتراضي
+Defaults,الإعدادات الافتراضية
+Deleted folder,مجلد المحذوفات
+Document type,نوع المستند
+Download count,عدد التنزيلات
+Download limit,حد التنزيل
+Draft,مسودة
+e.g. /Documents/report.pdf,مثال: /الملفات/تقرير.pdf
+Email,البريد الإلكتروني
+Enabled,مفعّل
+Error,الخطأ
+Expired,منتهية
+Expires on,تنتهي في
+Expiry (days),مدة الصلاحية (أيام)
+Failed,فشل
+File,الملف
+Folder path,مسار المجلد
+Full name,الاسم
+https://example.com — no trailing slash,https://example.com — بدون / في النهاية
+Include private,يشمل الخاص
+Include public,يشمل العام
+Included doctypes,الأنواع المشمولة
+Last connection status,حالة آخر اتصال
+Leave blank to use the default template.,اتركه فارغًا لاستخدام القالب الافتراضي.
+Link,الرابط
+Linked to,مرتبطة بـ
+Log,السجل
+Manually,يدويًا
+Mobile,الجوال
 Nextcloud Settings,إعدادات Nextcloud
+Not created,لم تُنشأ
+Not sent,لم تُرسل
+Only disable this on a test server,لا تُعطّله إلا على خادم اختبار
+Organisation,الجهة
+Package,الحزمة
+Password delivery channel,قناة تسليم كلمة المرور
+Path template,قالب المسار
+Phone,هاتف
+Policy,السياسة
+Private,خاص
+Purpose,الغرض
+Recipients,المستلمون
+Remote path,المسار على الخادم
+Root folder,المجلد الجذر
+Selected files,ملفات محددة
+Server URL,عنوان الخادم
+Service account,حساب الخدمة
+"Share a whole folder, or leave blank and list files below",شارك مجلدًا كاملًا، أو اترك الحقل واذكر الملفات أدناه
+Share ID,معرّف المشاركة
+Share log,سجل المشاركة
+Share Packages,حزم المشاركة
+Size (bytes),الحجم (بايت)
+SMS,رسالة نصية
+Status,الحالة
+Storage is opt-in per doctype. Anything not listed here stays on the server disk.,التخزين اختياري لكل نوع مستند. ما لا يُذكر هنا يبقى على قرص الخادم.
+Storage rules,قواعد التخزين
+Store attachments on Nextcloud,تخزين المرفقات على Nextcloud
+Tabadul,المشاركة الآمنة
+The path actually written at upload time. Never recomputed: fields of the attached document can change.,المسار الفعلي وقت الرفع. لا يُعاد احتسابه: حقول المستند المرتبط قد تتغيّر.
+Title,العنوان
+Token,الرمز
+Verify TLS certificate,التحقق من شهادة TLS
+WhatsApp,واتساب
+When an attachment is deleted,عند حذف المرفق
+"When enabled, attachments on the doctypes listed below are stored on Nextcloud instead of the server disk.",عند التفعيل، تُخزَّن مرفقات الأنواع المحدَّدة أدناه على Nextcloud بدل قرص الخادم.
+When off: view only. Does not prevent screen capture,عند الإلغاء: عرض فقط. لا يمنع التقاط الشاشة
+Nextcloud settings are not configured yet,لم تُضبط إعدادات Nextcloud بعد
+Could not reach the server: {0},تعذّر الوصول إلى الخادم: {0}
+The service account was rejected (check the app password),رُفض حساب الخدمة (تحقّق من كلمة مرور التطبيق)
+Unreadable response from the server: {0},رد غير مفهوم من الخادم: {0}
+Could not create folder {0} ({1}),تعذّر إنشاء المجلد {0} ({1})
+Could not upload the file: {0},تعذّر رفع الملف: {0}
+File upload failed ({0}),فشل رفع الملف ({0})
+Could not download the file: {0},تعذّر تنزيل الملف: {0}
+The file no longer exists on the server: {0},الملف لم يعد موجودًا على الخادم: {0}
+File download failed ({0}),فشل تنزيل الملف ({0})
+Could not move the file ({0}),تعذّر نقل الملف ({0})
+Expiry cannot be negative,مدة الصلاحية لا يمكن أن تكون سالبة
+Connected — {0},متصل — {0}
+Connection failed — {0},فشل الاتصال — {0}
+Login required,يلزم تسجيل الدخول
+This file is not stored on Nextcloud,هذا الملف غير مخزَّن على Nextcloud
+Not permitted to read {0} {1},لا تملك صلاحية الاطلاع على {0} {1}
+Not permitted to read this file,لا تملك صلاحية الاطلاع على هذا الملف
+No remote path is recorded for this file: {0},لا يوجد مسار مسجَّل لهذا الملف على الخادم: {0}
+"The platform records share creation, share deletion, service-account sign-in, and download counts. It provides no record of who downloaded a file or when, and no reliable tracking of share-page views.",تسجّل المنصة إنشاء المشاركة وإلغاءها والدخول إلى حساب الخدمة، وعدد مرات التنزيل. لا توفّر المنصة سجلًا يبيّن مَن نزّل الملف أو متى، ولا تتبّعًا موثوقًا لفتح صفحة المشاركة.
+Specify at least one folder or file,حدّد مجلدًا أو ملفًا واحدًا على الأقل
+Email {0} appears more than once in the recipient list,البريد {0} مكرر في قائمة المستلمين
+The expiry date is in the past,تاريخ الانتهاء في الماضي
+This package is cancelled,الحزمة ملغاة
+There are no recipients,لا يوجد مستلمون
+Could not apply the download limit to this share,تعذّر ضبط حد التنزيل على هذه المشاركة
+{0} emailed,{0} أُرسلت بالبريد
+{0} awaiting manual delivery,{0} بانتظار التسليم اليدوي
+{0} failed,{0} فشلت
+Nothing was created,لم يُنشأ شيء
+Partially cancelled. Not deleted: {0},أُلغيت جزئيًا. لم تُحذف: {0}
+Share package expired: {0},انتهت صلاحية حزمة المشاركة: {0}
+"<p>The package <b>{0}</b> expired on {1}, and recipients can no longer reach it.</p>",<p>انتهت صلاحية الحزمة <b>{0}</b> بتاريخ {1}، ولم يعد بإمكان المستلمين الوصول إليها.</p>
+The share was deleted directly in Nextcloud,حُذفت المشاركة من Nextcloud مباشرة

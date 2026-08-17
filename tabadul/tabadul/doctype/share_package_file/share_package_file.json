@@ -13,9 +13,9 @@
    "fieldname": "remote_path",
    "fieldtype": "Data",
    "in_list_view": 1,
-   "label": "المسار على الخادم",
+   "label": "Remote path",
    "reqd": 1,
-   "description": "مثال: /الملفات/تقرير.pdf"
+   "description": "e.g. /Documents/report.pdf"
   }
  ],
  "permissions": []

@@ -1,0 +1,78 @@
+{
+ "doctype": "DocType",
+ "name": "Nextcloud Stored File",
+ "module": "Tabadul",
+ "engine": "InnoDB",
+ "custom": 0,
+ "autoname": "hash",
+ "track_changes": 0,
+ "field_order": [
+  "file",
+  "remote_path",
+  "col_a",
+  "attached_to_doctype",
+  "attached_to_name",
+  "is_private",
+  "file_size"
+ ],
+ "fields": [
+  {
+   "fieldname": "file",
+   "fieldtype": "Link",
+   "options": "File",
+   "label": "File",
+   "reqd": 1,
+   "unique": 1,
+   "in_list_view": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "remote_path",
+   "fieldtype": "Small Text",
+   "label": "Remote path",
+   "reqd": 1,
+   "description": "The path actually written at upload time. Never recomputed: fields of the attached document can change."
+  },
+  {
+   "fieldname": "col_a",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "attached_to_doctype",
+   "fieldtype": "Link",
+   "options": "DocType",
+   "label": "Attached to doctype",
+   "in_list_view": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "attached_to_name",
+   "fieldtype": "Dynamic Link",
+   "options": "attached_to_doctype",
+   "label": "Attached to name",
+   "in_list_view": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "is_private",
+   "fieldtype": "Check",
+   "label": "Private",
+   "default": "0"
+  },
+  {
+   "fieldname": "file_size",
+   "fieldtype": "Int",
+   "label": "Size (bytes)"
+  }
+ ],
+ "permissions": [
+  {
+   "role": "System Manager",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "delete": 1,
+   "report": 1
+  }
+ ]
+}

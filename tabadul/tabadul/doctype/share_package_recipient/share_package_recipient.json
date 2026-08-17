@@ -23,7 +23,7 @@
   {
    "fieldname": "full_name",
    "fieldtype": "Data",
-   "label": "الاسم",
+   "label": "Full name",
    "in_list_view": 1,
    "reqd": 1
   },
@@ -31,21 +31,21 @@
    "fieldname": "email",
    "fieldtype": "Data",
    "options": "Email",
-   "label": "البريد الإلكتروني",
+   "label": "Email",
    "in_list_view": 1,
    "reqd": 1
   },
   {
    "fieldname": "organisation",
    "fieldtype": "Data",
-   "label": "الجهة",
+   "label": "Organisation",
    "in_list_view": 1
   },
   {
    "fieldname": "phone",
    "fieldtype": "Data",
-   "label": "الجوال",
-   "description": "قناة تسليم كلمة المرور"
+   "label": "Mobile",
+   "description": "Password delivery channel"
   },
   {
    "fieldname": "col_r",
@@ -54,49 +54,49 @@
   {
    "fieldname": "status",
    "fieldtype": "Select",
-   "options": "\nلم تُنشأ\nنشطة\nبانتظار التسليم اليدوي\nملغاة\nفشل",
-   "label": "الحالة",
+   "options": "\nNot created\nActive\nAwaiting manual delivery\nCancelled\nFailed",
+   "label": "Status",
    "read_only": 1,
    "in_list_view": 1,
-   "default": "لم تُنشأ"
+   "default": "Not created"
   },
   {
    "fieldname": "nc_share_id",
    "fieldtype": "Data",
-   "label": "معرّف المشاركة",
+   "label": "Share ID",
    "read_only": 1
   },
   {
    "fieldname": "nc_share_token",
    "fieldtype": "Data",
-   "label": "الرمز",
+   "label": "Token",
    "read_only": 1,
    "hidden": 1
   },
   {
    "fieldname": "share_url",
    "fieldtype": "Small Text",
-   "label": "الرابط",
+   "label": "Link",
    "read_only": 1
   },
   {
    "fieldname": "password_sent_via",
    "fieldtype": "Select",
-   "options": "\nلم تُرسل\nواتساب\nرسالة نصية\nهاتف\nيدويًا",
-   "label": "قناة تسليم كلمة المرور",
-   "default": "لم تُرسل"
+   "options": "\nNot sent\nWhatsApp\nSMS\nPhone\nManually",
+   "label": "Password delivery channel",
+   "default": "Not sent"
   },
   {
    "fieldname": "download_count",
    "fieldtype": "Int",
-   "label": "عدد التنزيلات",
+   "label": "Download count",
    "read_only": 1,
-   "description": "عدد فقط — المنصة لا توفّر سجلًا لمن نزّل"
+   "description": "A count only — the platform provides no record of who downloaded"
   },
   {
    "fieldname": "error_message",
    "fieldtype": "Small Text",
-   "label": "الخطأ",
+   "label": "Error",
    "read_only": 1
   }
  ],

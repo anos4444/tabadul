@@ -38,12 +38,12 @@
   {
    "fieldname": "sec_main",
    "fieldtype": "Section Break",
-   "label": "الحزمة"
+   "label": "Package"
   },
   {
    "fieldname": "title",
    "fieldtype": "Data",
-   "label": "العنوان",
+   "label": "Title",
    "reqd": 1,
    "in_list_view": 1,
    "in_global_search": 1
@@ -51,7 +51,7 @@
   {
    "fieldname": "purpose",
    "fieldtype": "Small Text",
-   "label": "الغرض",
+   "label": "Purpose",
    "in_global_search": 1
   },
   {
@@ -62,48 +62,48 @@
    "fieldname": "linked_doctype",
    "fieldtype": "Link",
    "options": "DocType",
-   "label": "مرتبطة بـ"
+   "label": "Linked to"
   },
   {
    "fieldname": "linked_name",
    "fieldtype": "Dynamic Link",
    "options": "linked_doctype",
-   "label": "السجل"
+   "label": "Log"
   },
   {
    "fieldname": "sec_content",
    "fieldtype": "Section Break",
-   "label": "المحتوى"
+   "label": "Contents"
   },
   {
    "fieldname": "folder_path",
    "fieldtype": "Data",
-   "label": "مسار المجلد",
-   "description": "شارك مجلدًا كاملًا، أو اترك الحقل واذكر الملفات أدناه",
+   "label": "Folder path",
+   "description": "Share a whole folder, or leave blank and list files below",
    "in_global_search": 1
   },
   {
    "fieldname": "files",
    "fieldtype": "Table",
    "options": "Share Package File",
-   "label": "ملفات محددة"
+   "label": "Selected files"
   },
   {
    "fieldname": "sec_policy",
    "fieldtype": "Section Break",
-   "label": "السياسة"
+   "label": "Policy"
   },
   {
    "fieldname": "expires_on",
    "fieldtype": "Date",
-   "label": "تنتهي في",
+   "label": "Expires on",
    "in_list_view": 1
   },
   {
    "fieldname": "download_limit",
    "fieldtype": "Int",
-   "label": "حد التنزيل",
-   "description": "0 = بلا حد"
+   "label": "Download limit",
+   "description": "0 = no limit"
   },
   {
    "fieldname": "col_p",
@@ -112,16 +112,16 @@
   {
    "fieldname": "allow_download",
    "fieldtype": "Check",
-   "label": "السماح بالتنزيل",
+   "label": "Allow download",
    "default": "1",
-   "description": "عند الإلغاء: عرض فقط. لا يمنع التقاط الشاشة"
+   "description": "When off: view only. Does not prevent screen capture"
   },
   {
    "fieldname": "status",
    "fieldtype": "Select",
-   "options": "\nمسودة\nنشطة\nمنتهية\nملغاة",
-   "label": "الحالة",
-   "default": "مسودة",
+   "options": "\nDraft\nActive\nExpired\nCancelled",
+   "label": "Status",
+   "default": "Draft",
    "read_only": 1,
    "in_list_view": 1,
    "in_standard_filter": 1
@@ -129,32 +129,32 @@
   {
    "fieldname": "sec_recipients",
    "fieldtype": "Section Break",
-   "label": "المستلمون"
+   "label": "Recipients"
   },
   {
    "fieldname": "recipients",
    "fieldtype": "Table",
    "options": "Share Package Recipient",
-   "label": "المستلمون",
+   "label": "Recipients",
    "reqd": 1
   },
   {
    "fieldname": "sec_audit",
    "fieldtype": "Section Break",
-   "label": "الأثر",
+   "label": "Audit",
    "collapsible": 1
   },
   {
    "fieldname": "created_by_user",
    "fieldtype": "Link",
    "options": "User",
-   "label": "أنشأها",
+   "label": "Created by",
    "read_only": 1
   },
   {
    "fieldname": "created_on",
    "fieldtype": "Datetime",
-   "label": "تاريخ الإنشاء",
+   "label": "Created on",
    "read_only": 1
   },
   {
@@ -165,25 +165,25 @@
    "fieldname": "cancelled_by",
    "fieldtype": "Link",
    "options": "User",
-   "label": "ألغاها",
+   "label": "Cancelled by",
    "read_only": 1
   },
   {
    "fieldname": "cancelled_on",
    "fieldtype": "Datetime",
-   "label": "تاريخ الإلغاء",
+   "label": "Cancelled on",
    "read_only": 1
   },
   {
    "fieldname": "cancel_reason",
    "fieldtype": "Small Text",
-   "label": "سبب الإلغاء",
+   "label": "Cancellation reason",
    "read_only": 1
   },
   {
    "fieldname": "audit_html",
    "fieldtype": "HTML",
-   "label": "سجل المشاركة"
+   "label": "Share log"
   }
  ],
  "permissions": [

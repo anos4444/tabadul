@@ -1,0 +1,59 @@
+{
+ "doctype": "DocType",
+ "name": "Nextcloud Storage Rule",
+ "module": "Tabadul",
+ "istable": 1,
+ "engine": "InnoDB",
+ "custom": 0,
+ "field_order": [
+  "document_type",
+  "enabled",
+  "path_template",
+  "include_private",
+  "include_public"
+ ],
+ "fields": [
+  {
+   "fieldname": "document_type",
+   "fieldtype": "Link",
+   "options": "DocType",
+   "label": "Document type",
+   "in_list_view": 1,
+   "reqd": 1,
+   "columns": 3
+  },
+  {
+   "fieldname": "enabled",
+   "fieldtype": "Check",
+   "label": "Enabled",
+   "default": "1",
+   "in_list_view": 1,
+   "columns": 1
+  },
+  {
+   "fieldname": "path_template",
+   "fieldtype": "Data",
+   "label": "Path template",
+   "in_list_view": 1,
+   "columns": 4,
+   "description": "Leave blank to use the default template."
+  },
+  {
+   "fieldname": "include_private",
+   "fieldtype": "Check",
+   "label": "Include private",
+   "default": "1",
+   "in_list_view": 1,
+   "columns": 1
+  },
+  {
+   "fieldname": "include_public",
+   "fieldtype": "Check",
+   "label": "Include public",
+   "default": "1",
+   "in_list_view": 1,
+   "columns": 1
+  }
+ ],
+ "permissions": []
+}

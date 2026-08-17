@@ -1,5 +1,6 @@
 """Whitelisted entry points. The app-password never crosses this boundary."""
 import frappe
+from frappe import _
 
 from tabadul.nextcloud_client import NextcloudClient, NextcloudError
 
@@ -45,9 +46,9 @@ def audit_view(package):
         "changes": versions,
         # Rendered verbatim in the UI. Do not soften or remove it.
         "coverage_note": (
-            "تسجّل المنصة إنشاء المشاركة وإلغاءها والدخول إلى حساب الخدمة، "
-            "وعدد مرات التنزيل. لا توفّر المنصة سجلًا يبيّن مَن نزّل الملف "
-            "أو متى، ولا تتبّعًا موثوقًا لفتح صفحة المشاركة."
+            _("The platform records share creation, share deletion, service-account "
+              "sign-in, and download counts. It provides no record of who downloaded a "
+              "file or when, and no reliable tracking of share-page views.")
         ),
     }
 
@@ -60,3 +61,66 @@ def check_connection():
         return {"ok": False, "error": str(e)}
     except Exception as e:
         return {"ok": False, "error": str(e)}
+
+
+@frappe.whitelist()
+def download_attachment(file):
+    """Serve a Nextcloud-stored attachment through Frappe's permission layer.
+
+    This is the security boundary for stored attachments. Frappe's own
+    /private/files/ route refuses to serve bytes the session user may not see;
+    once the bytes live on Nextcloud that check no longer runs, so it is
+    reimplemented here. The authority is the ATTACHED DOCUMENT, not the File
+    row — a File is readable by more people than the document it hangs off,
+    and using the File's own permission would quietly widen access.
+    """
+    from tabadul.attachments import is_remote, stored_path
+
+    if frappe.session.user == "Guest":
+        raise frappe.PermissionError(_("Login required"))
+
+    doc = frappe.get_doc("File", file)
+
+    if not is_remote(doc):
+        frappe.throw(_("This file is not stored on Nextcloud"))
+
+    if doc.attached_to_doctype and doc.attached_to_name:
+        if not frappe.has_permission(doc.attached_to_doctype, ptype="read",
+                                     doc=doc.attached_to_name,
+                                     user=frappe.session.user):
+            raise frappe.PermissionError(
+                _("Not permitted to read {0} {1}").format(doc.attached_to_doctype, doc.attached_to_name))
+    elif doc.is_private and frappe.session.user != doc.owner:
+        # Unattached private file: owner only, unless File itself is readable.
+        if not frappe.has_permission("File", "read", doc=doc.name):
+            raise frappe.PermissionError(_("Not permitted to read this file"))
+
+    remote = stored_path(doc.name)
+    if not remote:
+        frappe.throw(_("No remote path is recorded for this file: {0}").format(file),
+                     exc=frappe.DoesNotExistError)
+
+    content = NextcloudClient().download_file(remote)
+
+    frappe.local.response.filename = doc.file_name
+    frappe.local.response.filecontent = content
+    frappe.local.response.type = "download"
+    frappe.local.response.display_content_as = "attachment"
+
+
+@frappe.whitelist()
+def storage_stats():
+    """Counters only — how many files are stored and how much they occupy.
+
+    No per-user or per-download figures: the platform does not report them for
+    stored files any more than it does for shares, and inventing them here
+    would contradict what audit_view is careful to say.
+    """
+    frappe.only_for("System Manager")
+    rows = frappe.db.get_all(
+        "Nextcloud Stored File",
+        fields=["attached_to_doctype as doctype", "count(name) as files",
+                "sum(file_size) as bytes"],
+        group_by="attached_to_doctype", order_by="files desc")
+    return {"total_files": frappe.db.count("Nextcloud Stored File"),
+            "by_doctype": rows}

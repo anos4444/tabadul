@@ -13,6 +13,7 @@ import string
 import xml.etree.ElementTree as ET
 
 import frappe
+from frappe import _
 import requests
 
 # link shares (3) versus per-email shares (4). Email shares are preferred:
@@ -49,7 +50,7 @@ class NextcloudClient:
     def __init__(self):
         s = frappe.get_single("Nextcloud Settings")
         if not s.base_url or not s.service_user:
-            frappe.throw("لم تُضبط إعدادات Nextcloud بعد")
+            frappe.throw(_("Nextcloud settings are not configured yet"))
         self.base = s.base_url.rstrip("/")
         self.user = s.service_user
         self.password = s.get_password("app_password")
@@ -67,10 +68,10 @@ class NextcloudClient:
                 data=data, params=params, timeout=TIMEOUT, verify=self.verify,
             )
         except requests.exceptions.RequestException as e:
-            raise NextcloudUnreachable(f"تعذّر الوصول إلى الخادم: {e}") from e
+            raise NextcloudUnreachable(_("Could not reach the server: {0}").format(e)) from e
 
         if r.status_code in (401, 403) and not r.text.strip().startswith("{"):
-            raise NextcloudError("رُفض حساب الخدمة (تحقّق من كلمة مرور التطبيق)")
+            raise NextcloudError(_("The service account was rejected (check the app password)"))
 
         try:
             payload = r.json()
@@ -89,7 +90,7 @@ class NextcloudClient:
         try:
             root = ET.fromstring(text)
         except ET.ParseError as e:
-            raise NextcloudError(f"رد غير مفهوم من الخادم: {e}") from e
+            raise NextcloudError(_("Unreadable response from the server: {0}").format(e)) from e
         code = root.findtext("./meta/statuscode")
         if code and code not in ("100", "200"):
             raise NextcloudError(root.findtext("./meta/message") or f"OCS {code}")
@@ -221,9 +222,9 @@ class NextcloudClient:
                                      auth=(self.user, self.password),
                                      timeout=TIMEOUT, verify=self.verify)
             except requests.exceptions.RequestException as e:
-                raise NextcloudUnreachable(f"تعذّر الوصول إلى الخادم: {e}") from e
+                raise NextcloudUnreachable(_("Could not reach the server: {0}").format(e)) from e
             if r.status_code not in (201, 405):
-                raise NextcloudError(f"تعذّر إنشاء المجلد {cur} ({r.status_code})")
+                raise NextcloudError(_("Could not create folder {0} ({1})").format(cur, r.status_code))
         return True
 
     def upload_file(self, remote_path, content: bytes):
@@ -241,9 +242,9 @@ class NextcloudClient:
                              auth=(self.user, self.password),
                              timeout=max(TIMEOUT, 120), verify=self.verify)
         except requests.exceptions.RequestException as e:
-            raise NextcloudUnreachable(f"تعذّر رفع الملف: {e}") from e
+            raise NextcloudUnreachable(_("Could not upload the file: {0}").format(e)) from e
         if r.status_code not in (200, 201, 204):
-            raise NextcloudError(f"فشل رفع الملف ({r.status_code})")
+            raise NextcloudError(_("File upload failed ({0})").format(r.status_code))
         return remote_path
 
     def delete_path(self, remote_path):
@@ -254,3 +255,55 @@ class NextcloudClient:
         except requests.exceptions.RequestException as e:
             raise NextcloudUnreachable(str(e)) from e
         return r.status_code in (200, 204, 404)
+
+    def download_file(self, remote_path) -> bytes:
+        """GET the bytes back.
+
+        A 404 is raised as DoesNotExistError rather than a generic failure:
+        callers distinguish "the platform is unhappy" from "this file is gone",
+        and only the second is worth surfacing to a user as a broken link.
+        """
+        try:
+            r = requests.get(self._dav_url(remote_path),
+                             auth=(self.user, self.password),
+                             timeout=max(TIMEOUT, 120), verify=self.verify)
+        except requests.exceptions.RequestException as e:
+            raise NextcloudUnreachable(_("Could not download the file: {0}").format(e)) from e
+        if r.status_code == 404:
+            frappe.throw(_("The file no longer exists on the server: {0}").format(remote_path),
+                         exc=frappe.DoesNotExistError)
+        if r.status_code != 200:
+            raise NextcloudError(_("File download failed ({0})").format(r.status_code))
+        return r.content
+
+    def path_exists(self, remote_path) -> bool:
+        try:
+            r = requests.request("PROPFIND", self._dav_url(remote_path),
+                                 auth=(self.user, self.password),
+                                 headers={"Depth": "0"},
+                                 timeout=TIMEOUT, verify=self.verify)
+        except requests.exceptions.RequestException as e:
+            raise NextcloudUnreachable(str(e)) from e
+        return r.status_code in (200, 207)
+
+    def move_path(self, src, dest):
+        """MOVE, creating the destination's parent first.
+
+        Used to retire a file rather than destroy it. Overwrite is on: the
+        destination is an archive location, and refusing to move because
+        something is already there would strand the file at its live path.
+        """
+        folder = "/".join(dest.strip("/").split("/")[:-1])
+        if folder:
+            self.ensure_folder(folder)
+        try:
+            r = requests.request("MOVE", self._dav_url(src),
+                                 auth=(self.user, self.password),
+                                 headers={"Destination": self._dav_url(dest),
+                                          "Overwrite": "T"},
+                                 timeout=TIMEOUT, verify=self.verify)
+        except requests.exceptions.RequestException as e:
+            raise NextcloudUnreachable(str(e)) from e
+        if r.status_code not in (201, 204):
+            raise NextcloudError(_("Could not move the file ({0})").format(r.status_code))
+        return dest

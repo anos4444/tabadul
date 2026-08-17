@@ -18,33 +18,42 @@
   "default_expiry_days",
   "default_download_limit",
   "col_def",
-  "default_allow_download"
+  "default_allow_download",
+  "sec_storage",
+  "storage_enabled",
+  "storage_root",
+  "default_path_template",
+  "col_storage",
+  "delete_behaviour",
+  "archive_folder",
+  "sec_rules",
+  "storage_rules"
  ],
  "fields": [
   {
    "fieldname": "sec_conn",
    "fieldtype": "Section Break",
-   "label": "الاتصال"
+   "label": "Connection"
   },
   {
    "fieldname": "base_url",
    "fieldtype": "Data",
-   "label": "عنوان الخادم",
+   "label": "Server URL",
    "reqd": 1,
-   "description": "https://example.com — بدون / في النهاية"
+   "description": "https://example.com — no trailing slash"
   },
   {
    "fieldname": "service_user",
    "fieldtype": "Data",
-   "label": "حساب الخدمة",
+   "label": "Service account",
    "reqd": 1
   },
   {
    "fieldname": "app_password",
    "fieldtype": "Password",
-   "label": "كلمة مرور التطبيق",
+   "label": "App password",
    "reqd": 1,
-   "description": "app-password، وليس كلمة مرور الحساب"
+   "description": "An app password, not the account password"
   },
   {
    "fieldname": "col_conn",
@@ -53,33 +62,33 @@
   {
    "fieldname": "verify_tls",
    "fieldtype": "Check",
-   "label": "التحقق من شهادة TLS",
+   "label": "Verify TLS certificate",
    "default": "1",
-   "description": "لا تُعطّله إلا على خادم اختبار"
+   "description": "Only disable this on a test server"
   },
   {
    "fieldname": "connection_status",
    "fieldtype": "Small Text",
-   "label": "حالة آخر اتصال",
+   "label": "Last connection status",
    "read_only": 1
   },
   {
    "fieldname": "sec_defaults",
    "fieldtype": "Section Break",
-   "label": "الإعدادات الافتراضية"
+   "label": "Defaults"
   },
   {
    "fieldname": "default_expiry_days",
    "fieldtype": "Int",
-   "label": "مدة الصلاحية (أيام)",
+   "label": "Expiry (days)",
    "default": "14"
   },
   {
    "fieldname": "default_download_limit",
    "fieldtype": "Int",
-   "label": "حد التنزيل الافتراضي",
+   "label": "Default download limit",
    "default": "0",
-   "description": "0 = بلا حد"
+   "description": "0 = no limit"
   },
   {
    "fieldname": "col_def",
@@ -88,8 +97,69 @@
   {
    "fieldname": "default_allow_download",
    "fieldtype": "Check",
-   "label": "السماح بالتنزيل افتراضيًا",
+   "label": "Allow download by default",
    "default": "1"
+  },
+  {
+   "fieldname": "sec_storage",
+   "fieldtype": "Section Break",
+   "label": "Attachment storage"
+  },
+  {
+   "fieldname": "storage_enabled",
+   "fieldtype": "Check",
+   "label": "Store attachments on Nextcloud",
+   "default": "0",
+   "description": "When enabled, attachments on the doctypes listed below are stored on Nextcloud instead of the server disk."
+  },
+  {
+   "fieldname": "storage_root",
+   "fieldtype": "Data",
+   "label": "Root folder",
+   "default": "Frappe",
+   "depends_on": "storage_enabled"
+  },
+  {
+   "fieldname": "default_path_template",
+   "fieldtype": "Data",
+   "label": "Default path template",
+   "default": "{doctype}/{name}",
+   "depends_on": "storage_enabled",
+   "description": "Accepts fields of the attached document, e.g. Employee/{employee_number} - {employee_name}"
+  },
+  {
+   "fieldname": "col_storage",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "delete_behaviour",
+   "fieldtype": "Select",
+   "label": "When an attachment is deleted",
+   "options": "Archive\nDelete\nKeep",
+   "default": "Archive",
+   "depends_on": "storage_enabled",
+   "description": "Archive: move to the deleted folder. Delete: remove permanently. Keep: leave the file untouched."
+  },
+  {
+   "fieldname": "archive_folder",
+   "fieldtype": "Data",
+   "label": "Deleted folder",
+   "default": "_deleted",
+   "depends_on": "eval:doc.storage_enabled && doc.delete_behaviour=='Archive'"
+  },
+  {
+   "fieldname": "sec_rules",
+   "fieldtype": "Section Break",
+   "label": "Included doctypes",
+   "depends_on": "storage_enabled",
+   "description": "Storage is opt-in per doctype. Anything not listed here stays on the server disk."
+  },
+  {
+   "fieldname": "storage_rules",
+   "fieldtype": "Table",
+   "label": "Storage rules",
+   "options": "Nextcloud Storage Rule",
+   "depends_on": "storage_enabled"
   }
  ],
  "permissions": [

@@ -5,11 +5,12 @@ and must work even when Nextcloud is down, while reconciliation needs the
 server and is allowed to fail quietly until the next hour.
 """
 import frappe
+from frappe import _
 from frappe.utils import getdate, now_datetime, nowdate
 
 from tabadul.nextcloud_client import NextcloudClient, NextcloudError, NextcloudUnreachable
 
-ACTIVE, EXPIRED = "نشطة", "منتهية"
+ACTIVE, EXPIRED = "Active", "Expired"
 
 
 def close_expired_packages():
@@ -36,9 +37,10 @@ def _notify_closed(pkg):
     try:
         frappe.sendmail(
             recipients=[pkg["created_by_user"]],
-            subject=f"انتهت صلاحية حزمة المشاركة: {pkg['title']}",
-            message=(f"<p>انتهت صلاحية الحزمة <b>{frappe.utils.escape_html(pkg['title'])}</b> "
-                     f"بتاريخ {pkg['expires_on']}، ولم يعد بإمكان المستلمين الوصول إليها.</p>"),
+            subject=_("Share package expired: {0}").format(pkg["title"]),
+            message=_("<p>The package <b>{0}</b> expired on {1}, and recipients can no "
+                      "longer reach it.</p>").format(
+                          frappe.utils.escape_html(pkg["title"]), pkg["expires_on"]),
             reference_doctype="Share Package", reference_name=pkg["name"],
         )
     except Exception:
@@ -69,7 +71,7 @@ def reconcile_with_nextcloud():
         doc = frappe.get_doc("Share Package", name)
         changed = False
         for r in doc.recipients:
-            if not r.nc_share_id or r.status == "ملغاة":
+            if not r.nc_share_id or r.status == "Cancelled":
                 continue
             try:
                 remote = client.get_share(r.nc_share_id)
@@ -78,8 +80,8 @@ def reconcile_with_nextcloud():
             except NextcloudError:
                 continue
             if remote is None:
-                r.status = "ملغاة"
-                r.error_message = "حُذفت المشاركة من Nextcloud مباشرة"
+                r.status = "Cancelled"
+                r.error_message = _("The share was deleted directly in Nextcloud")
                 changed = True
                 continue
             count = client.get_download_count(r.nc_share_token)
