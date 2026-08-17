@@ -203,3 +203,54 @@ class NextcloudClient:
                 if d.get(k) is not None:
                     return int(d[k])
         return None
+
+    # ------------------------------------------------------------- WebDAV
+    def _dav_url(self, remote_path):
+        from urllib.parse import quote
+        p = "/" + remote_path.strip("/")
+        return f"{self.base}/remote.php/dav/files/{quote(self.user)}{quote(p)}"
+
+    def ensure_folder(self, remote_path):
+        """MKCOL each segment. 405 means it already exists, which is success."""
+        parts = [p for p in remote_path.strip("/").split("/") if p]
+        cur = ""
+        for seg in parts:
+            cur = f"{cur}/{seg}"
+            try:
+                r = requests.request("MKCOL", self._dav_url(cur),
+                                     auth=(self.user, self.password),
+                                     timeout=TIMEOUT, verify=self.verify)
+            except requests.exceptions.RequestException as e:
+                raise NextcloudUnreachable(f"تعذّر الوصول إلى الخادم: {e}") from e
+            if r.status_code not in (201, 405):
+                raise NextcloudError(f"تعذّر إنشاء المجلد {cur} ({r.status_code})")
+        return True
+
+    def upload_file(self, remote_path, content: bytes):
+        """PUT bytes to a WebDAV path, creating parent folders first.
+
+        Single PUT: the edge proxy cuts a request body at 60 seconds, so this
+        suits documents, not multi-gigabyte media. Chunked upload belongs here
+        if that limit is ever hit in practice.
+        """
+        folder = "/".join(remote_path.strip("/").split("/")[:-1])
+        if folder:
+            self.ensure_folder(folder)
+        try:
+            r = requests.put(self._dav_url(remote_path), data=content,
+                             auth=(self.user, self.password),
+                             timeout=max(TIMEOUT, 120), verify=self.verify)
+        except requests.exceptions.RequestException as e:
+            raise NextcloudUnreachable(f"تعذّر رفع الملف: {e}") from e
+        if r.status_code not in (200, 201, 204):
+            raise NextcloudError(f"فشل رفع الملف ({r.status_code})")
+        return remote_path
+
+    def delete_path(self, remote_path):
+        try:
+            r = requests.delete(self._dav_url(remote_path),
+                                auth=(self.user, self.password),
+                                timeout=TIMEOUT, verify=self.verify)
+        except requests.exceptions.RequestException as e:
+            raise NextcloudUnreachable(str(e)) from e
+        return r.status_code in (200, 204, 404)
