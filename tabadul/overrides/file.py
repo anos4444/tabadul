@@ -14,7 +14,7 @@ never routed to Nextcloud.
 import frappe
 from frappe.core.doctype.file.file import File
 
-from tabadul.attachments import is_remote, stored_path
+from tabadul.attachments import PROXY_ROUTE, is_remote, stored_path
 from tabadul.nextcloud_client import NextcloudClient
 
 # Mirrors frappe.core.doctype.file.file.FILE_ENCODING_OPTIONS
@@ -74,6 +74,13 @@ def after_insert(doc, method=None):
     remote = doc.flags.get("tabadul_remote_path")
     if not remote:
         return
+
+    # Repair the URL if write_file() ran before the name was assigned.
+    expected = f"{PROXY_ROUTE}?file={frappe.utils.quoted(doc.name)}"
+    if doc.file_url != expected:
+        doc.db_set("file_url", expected, update_modified=False)
+        doc.file_url = expected
+
     if frappe.db.exists("Nextcloud Stored File", {"file": doc.name}):
         return
     frappe.get_doc({

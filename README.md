@@ -55,6 +55,54 @@ not see. Once the bytes live on Nextcloud that check no longer runs, so
 than the document it hangs off, and using the File's own permission would
 quietly widen access.
 
+### Trying it
+
+```bash
+bench get-app https://github.com/anos4444/tabadul.git
+bench --site <site> install-app tabadul
+bench --site <site> migrate
+```
+
+Then, in `Nextcloud Settings`:
+
+1. Fill in the connection (server URL, service account, app password) and hit
+   **Test Connection**.
+2. Tick **Store attachments on Nextcloud**.
+3. Add a row under **Included doctypes** — start with one low-risk doctype,
+   not Employee. `ToDo` is ideal: attach a file to a ToDo and watch it land in
+   Nextcloud under `Frappe/ToDo/<name>/`.
+4. Open the attachment from the document to confirm the download proxy serves
+   it, then check `Nextcloud Stored File` for the mapping row.
+
+Nothing moves until step 2 and 3 are both done. A site with the app installed
+and no rules behaves exactly like one without it.
+
+**Existing attachments stay on disk.** A rule only affects new uploads. To move
+what is already there:
+
+```python
+# dry run first — writes nothing, tells you what would move and where
+frappe.call("tabadul.migrate_attachments.plan", doctype="ToDo")
+
+# then, still non-destructive: uploads but keeps the local copy
+frappe.call("tabadul.migrate_attachments.run", doctype="ToDo", dry_run=0)
+
+# prove the bytes actually arrived, not just that rows changed
+frappe.call("tabadul.migrate_attachments.verify", doctype="ToDo")
+```
+
+`delete_local=1` is a separate, deliberate step. Never pass it in the same run
+that uploads.
+
+### Tests
+
+```bash
+bench --site <site> run-tests --app tabadul
+```
+
+Pure-function tests run anywhere; the rest skip with a stated reason when no
+site is bound rather than failing meaninglessly.
+
 ### Two things that will bite you
 
 - **Nextcloud normalises filenames to NFC.** An alef with hamza written as

@@ -27,6 +27,9 @@ from tabadul.nextcloud_client import NextcloudClient
 # extra column on every File row in the site.
 PROXY_ROUTE = "/api/method/tabadul.api.download_attachment"
 
+# Placeholder used when a File has no name yet; after_insert() replaces it.
+PENDING = "pending"
+
 _ILLEGAL = re.compile(r'[\\/:*?"<>|]')
 _CONTROL = re.compile(r"[\x00-\x1f\x7f]")
 
@@ -144,9 +147,15 @@ def write_file(file_doc):
     remote = remote_path_for(file_doc)
     NextcloudClient().upload_file(remote, file_doc._content)
 
-    file_doc.file_url = f"{PROXY_ROUTE}?file={frappe.utils.quoted(file_doc.name or '')}"
-    # Carried to after_insert, which is the first point at which the File has a
-    # name to key the mapping row on.
+    # Document.insert() assigns the name before running validate(), so the name
+    # is normally present here. It is not guaranteed for every code path that
+    # reaches save_file(), though, and a URL silently missing its file argument
+    # would fail only later, at download time. Emit a marker instead and let
+    # after_insert() rewrite it once the name definitely exists.
+    file_doc.file_url = (
+        f"{PROXY_ROUTE}?file={frappe.utils.quoted(file_doc.name)}"
+        if file_doc.name else f"{PROXY_ROUTE}?file={PENDING}"
+    )
     file_doc.flags.tabadul_remote_path = remote
 
     return {"file_name": posixpath.basename(remote), "file_url": file_doc.file_url}
