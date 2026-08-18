@@ -29,6 +29,12 @@ _ENCODINGS = ("utf-8", "windows-1250", "windows-1252")
 
 
 class NextcloudFile(File):
+    def _nextcloud_ref(self):
+        """Where this file lives — path and server — or None if it is local."""
+        if not is_remote(self):
+            return None
+        return stored_ref(self.name)
+
     def get_content(self, encodings=None):
         ref = self._nextcloud_ref()
         if not ref or not ref.remote_path:

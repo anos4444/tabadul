@@ -10,6 +10,7 @@ a storage rule is actually configured, and say so rather than passing quietly.
 
 import unicodedata
 import contextlib
+import pathlib
 import unittest
 from unittest import mock
 
@@ -591,6 +592,94 @@ class TestMultiTenant(unittest.TestCase):
         # send the delete to a server that never held it.
         self.assertEqual(used.get("target"), "NC-Old")
         self.assertEqual(used.get("deleted"), "/Frappe/X/y.pdf")
+
+
+class TestModulesImport(unittest.TestCase):
+    """The cheapest check there is, and it would have caught a shipped 500.
+
+    A NameError or a missing helper in any of these only shows up when the code
+    path runs — which, for the upload path, means in front of a user.
+    """
+
+    def test_every_runtime_module_imports(self):
+        import importlib
+
+        failures = []
+        for m in ("tabadul.attachments", "tabadul.api", "tabadul.migrate_attachments",
+                  "tabadul.overrides.file", "tabadul.nextcloud_client"):
+            try:
+                importlib.import_module(m)
+            except Exception as e:
+                failures.append(f"{m}: {type(e).__name__}: {e}")
+        self.assertEqual(failures, [], "\n".join(failures))
+
+
+class TestOverrideIsInternallyConsistent(unittest.TestCase):
+    """Every self._helper() the File override calls must actually exist.
+
+    This is here because one did not. A rename updated the call sites in
+    get_content() and exists_on_disk() but not the definition, so every upload
+    raised AttributeError inside File.save_file() and the browser reported
+    "500: Server error during upload. The file might be corrupted." The file
+    was fine; the override was not. Nothing off-bench exercised that class, so
+    a green suite said nothing about it.
+    """
+
+    def test_no_helper_is_called_that_is_not_defined(self):
+        import ast
+
+        src = pathlib.Path(__file__).resolve().parent.parent / "overrides" / "file.py"
+        tree = ast.parse(src.read_text(encoding="utf-8"))
+        cls = next(n for n in ast.walk(tree)
+                   if isinstance(n, ast.ClassDef) and n.name == "NextcloudFile")
+
+        defined = {n.name for n in cls.body if isinstance(n, ast.FunctionDef)}
+        called = {
+            n.func.attr
+            for n in ast.walk(cls)
+            if isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute)
+            and isinstance(n.func.value, ast.Name) and n.func.value.id == "self"
+        }
+
+        from tabadul.overrides.file import NextcloudFile
+
+        # Inherited names are legitimate; only genuinely absent ones are bugs.
+        missing = sorted(c for c in called
+                         if c not in defined and not hasattr(NextcloudFile, c))
+        self.assertEqual(missing, [], f"called but never defined: {missing}")
+
+        # NEGATIVE CONTROL: the scan must actually be looking at something, or
+        # an empty `called` set would pass for every possible override.
+        self.assertIn("_nextcloud_ref", called,
+                      "the scan found no self._helper() calls; it proves nothing")
+
+    def test_remote_file_reads_from_its_own_instance(self):
+        from tabadul.overrides import file as ov
+
+        seen = {}
+
+        class _Client:
+            def __init__(self, target=None):
+                seen["target"] = getattr(target, "name", None)
+
+            def path_exists(self, p):
+                seen["asked"] = p
+                return True
+
+        doc = ov.NextcloudFile()
+        doc.name = "F1"
+        doc.file_url = "/api/method/tabadul.api.download_attachment?file=F1"
+
+        with mock.patch.object(ov, "stored_ref",
+                               return_value=_Stub(remote_path="/Frappe/X/y.pdf",
+                                                  instance="NC-Beta")), \
+             mock.patch.object(ov.frappe, "get_cached_doc",
+                               side_effect=lambda dt, n: _Stub(name=n)), \
+             mock.patch.object(ov, "NextcloudClient", _Client):
+            self.assertTrue(doc.exists_on_disk())
+
+        self.assertEqual(seen.get("target"), "NC-Beta")
+        self.assertEqual(seen.get("asked"), "/Frappe/X/y.pdf")
 
 
 class TestDownloadPermission(unittest.TestCase):
