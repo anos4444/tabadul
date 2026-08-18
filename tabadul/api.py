@@ -124,3 +124,73 @@ def storage_stats():
         group_by="attached_to_doctype", order_by="files desc")
     return {"total_files": frappe.db.count("Nextcloud Stored File"),
             "by_doctype": rows}
+
+
+@frappe.whitelist()
+def browse(path=None):
+    """List one level of the Nextcloud tree, for the attach picker.
+
+    Write permission on the target is not checked here because this only
+    reveals the service account's own tree, which every Desk user with the
+    picker can already reach through the same account. Attaching is where the
+    permission check belongs, and attach_remote does it.
+    """
+    from tabadul.attachments import settings
+
+    if frappe.session.user == "Guest":
+        raise frappe.PermissionError(_("Login required"))
+
+    s = settings()
+    root = "/" + (s.get("storage_root") or "Frappe").strip("/")
+    target = path or root
+
+    # Keep the picker inside the configured root: the service account may hold
+    # unrelated material and the picker is not an excuse to browse it.
+    if not (target == root or target.startswith(root + "/")):
+        frappe.throw(_("Path is outside the configured root folder"))
+
+    return {"path": target, "root": root, "entries": NextcloudClient().list_folder(target)}
+
+
+@frappe.whitelist()
+def attach_remote(doctype, docname, remote_path, is_private=1):
+    """Attach a file that already exists on Nextcloud, without re-uploading.
+
+    The bytes stay where they are; only a File row and its mapping are made.
+    Permission is checked against the document being attached to, matching the
+    rule used when serving the file back.
+    """
+    from tabadul.attachments import PENDING, PROXY_ROUTE, settings
+
+    if frappe.session.user == "Guest":
+        raise frappe.PermissionError(_("Login required"))
+
+    if not frappe.has_permission(doctype, ptype="write", doc=docname,
+                                 user=frappe.session.user):
+        raise frappe.PermissionError(
+            _("Not permitted to attach files to {0} {1}").format(doctype, docname))
+
+    s = settings()
+    root = "/" + (s.get("storage_root") or "Frappe").strip("/")
+    if not (remote_path == root or remote_path.startswith(root + "/")):
+        frappe.throw(_("Path is outside the configured root folder"))
+
+    client = NextcloudClient()
+    if not client.path_exists(remote_path):
+        frappe.throw(_("That file no longer exists on Nextcloud: {0}").format(remote_path),
+                     exc=frappe.DoesNotExistError)
+
+    doc = frappe.get_doc({
+        "doctype": "File",
+        "file_name": remote_path.rstrip("/").rsplit("/", 1)[-1],
+        "attached_to_doctype": doctype,
+        "attached_to_name": docname,
+        "is_private": int(is_private or 0),
+        # after_insert rewrites this once the name exists, and creates the
+        # mapping from the flag below.
+        "file_url": f"{PROXY_ROUTE}?file={PENDING}",
+    })
+    doc.flags.tabadul_remote_path = remote_path
+    doc.insert(ignore_permissions=True)
+
+    return {"file": doc.name, "file_url": doc.file_url, "remote_path": remote_path}

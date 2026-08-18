@@ -61,6 +61,13 @@ class NextcloudFile(File):
             return
         return super().validate_file_url()
 
+    def validate_file_path(self):
+        # Core resolves file_url against the site's files directory and rejects
+        # anything outside it. Our URL is an API route, not a path.
+        if is_remote(self):
+            return
+        return super().validate_file_path()
+
 
 
 def _adopt_deduplicated(doc):

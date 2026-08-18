@@ -10,6 +10,7 @@ a storage rule is actually configured, and say so rather than passing quietly.
 
 import unicodedata
 import unittest
+from unittest import mock
 
 import frappe
 
@@ -215,6 +216,93 @@ class TestDeduplication(unittest.TestCase):
                                     {"remote_path": shared, "file": ["!=", rows[0].file]})
         self.assertEqual(remaining, 0, "guard would block a legitimate retirement")
         rows[0].delete(ignore_permissions=True)
+
+
+class TestPrivateHardFail(unittest.TestCase):
+    """A private file must never silently land on the ERP disk.
+
+    That is the entire point of the setting: an employee ID scan that falls
+    back to local storage because Nextcloud blinked is invisible until someone
+    audits the disk, which is exactly the outcome the app exists to prevent.
+    Public files may fall back, because blocking them costs more than it saves.
+    """
+
+    def _stub(self, is_private):
+        f = _Stub(file_name="x.pdf", is_private=is_private, is_folder=0,
+                  attached_to_doctype="ToDo", attached_to_name="abc",
+                  content_type="application/pdf")
+        f._content = b"bytes"
+        f.flags = _Stub()
+        f.fell_back = False
+
+        def _local():
+            f.fell_back = True
+            return {"file_url": "/private/files/x.pdf"}
+
+        f.save_file_on_filesystem = _local
+        return f
+
+    def test_private_upload_failure_raises_and_does_not_fall_back(self):
+        from tabadul import attachments
+        from tabadul.nextcloud_client import NextcloudUnreachable
+
+        f = self._stub(is_private=1)
+        with mock.patch.object(attachments, "should_route", return_value=True), \
+             mock.patch.object(attachments, "remote_path_for", return_value="/Frappe/ToDo/abc/x.pdf"), \
+             mock.patch.object(attachments, "_upload_with_retry",
+                               side_effect=NextcloudUnreachable("down")):
+            with self.assertRaises(Exception):
+                attachments.write_file(f)
+
+        self.assertFalse(f.fell_back,
+                         "a private file was written to local disk after an upload failure")
+
+    def test_public_upload_failure_falls_back(self):
+        # NEGATIVE CONTROL: if this also raised, the rule would just be "block
+        # everything" and the is_private distinction would be doing no work.
+        from tabadul import attachments
+        from tabadul.nextcloud_client import NextcloudUnreachable
+
+        f = self._stub(is_private=0)
+        with mock.patch.object(attachments, "should_route", return_value=True), \
+             mock.patch.object(attachments, "remote_path_for", return_value="/Frappe/ToDo/abc/x.pdf"), \
+             mock.patch.object(attachments, "_upload_with_retry",
+                               side_effect=NextcloudUnreachable("down")):
+            attachments.write_file(f)
+
+        self.assertTrue(f.fell_back,
+                        "a public file blocked instead of degrading to local storage")
+
+    def test_retry_only_covers_network_failures(self):
+        # A rejected credential will be rejected again; retrying it only delays
+        # the error the user needs to see. A blip is worth riding out.
+        from tabadul import attachments
+        from tabadul.nextcloud_client import NextcloudError, NextcloudUnreachable
+
+        calls = {"rejected": 0, "blip": 0}
+
+        class _Rejects:
+            def upload_file(self, remote, content):
+                calls["rejected"] += 1
+                raise NextcloudError("403 rejected")
+
+        class _Blips:
+            def upload_file(self, remote, content):
+                calls["blip"] += 1
+                raise NextcloudUnreachable("timeout")
+
+        with mock.patch.object(attachments, "NextcloudClient", _Rejects):
+            with self.assertRaises(NextcloudError):
+                attachments._upload_with_retry("/p", b"x", attempts=3)
+        self.assertEqual(calls["rejected"], 1,
+                         "a rejection was retried; only network blips should be")
+
+        # NEGATIVE CONTROL: a blip MUST be retried, or the retry is dead code.
+        with mock.patch.object(attachments, "NextcloudClient", _Blips), \
+             mock.patch.object(attachments.time, "sleep", lambda *_: None):
+            with self.assertRaises(NextcloudUnreachable):
+                attachments._upload_with_retry("/p", b"x", attempts=3)
+        self.assertEqual(calls["blip"], 3, "a network blip was not retried")
 
 
 class TestDownloadPermission(unittest.TestCase):

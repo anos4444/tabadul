@@ -46,6 +46,38 @@ Frappe supports this properly, so no core patching:
 | Delete | `delete_file_data_content` hook |
 | Read | `override_doctype_class` on File — **reading is not hookable**; `get_content()` opens the local path directly, and print formats and email attachments all use it |
 
+### Private files never fall back to local disk
+
+If an upload cannot reach Nextcloud:
+
+- **Private** — the upload **fails**. Nothing is written to the ERP server.
+- **Public** — falls back to local disk and is logged;
+  `migrate_attachments.plan()` lists it later as a candidate to move.
+
+The distinction follows the sensitivity of the file rather than an
+administrator's guess about a doctype. An employee ID scan must never touch the
+ERP disk; a product image landing there during an outage harms nobody, and
+blocking it would cost more than it saves.
+
+Network failures are retried three times before this applies, so a brief blip
+does not block anyone. A rejected credential is **not** retried — it will be
+rejected again, and the person needs the error now.
+
+The consequence, stated plainly: while Nextcloud is unreachable, staff cannot
+attach private documents at all. That is the setting working, not failing.
+
+### Attaching a file already on Nextcloud
+
+The upload dialog gains a **Nextcloud** button beside "Upload from device". It
+attaches an existing Nextcloud file *by reference* — no re-upload, no second
+copy. Ordinary uploads on a routed doctype already land on Nextcloud through
+the storage hook, so a second upload path would only be a way to get it wrong.
+
+This uses `frappe.ui.FileUploader.UploadOptions`, a supported registry that
+core maps into the dialog as `additional_upload_handlers`. Nothing is patched,
+so a Frappe upgrade cannot break the dialog. Google Drive in that same dialog
+is hardcoded because it predates the hook — it is not the pattern to copy.
+
 ### The download proxy is the security boundary
 
 Frappe's `/private/files/` route refuses to serve bytes the session user may

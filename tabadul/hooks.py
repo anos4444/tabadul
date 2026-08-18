@@ -24,6 +24,11 @@ scheduler_events = {
     ],
 }
 
+# Registers a Nextcloud source in the upload dialog via
+# frappe.ui.FileUploader.UploadOptions, which core maps into the component as
+# additional_upload_handlers. A supported hook, not a patch.
+app_include_js = "tabadul.bundle.js"
+
 # --------------------------------------------------------------- attachments
 # Frappe calls these in place of its own filesystem implementation when an app
 # defines them — see frappe/core/doctype/file/file.py, File.save_file() and

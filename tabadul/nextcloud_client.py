@@ -286,6 +286,47 @@ class NextcloudClient:
             raise NextcloudUnreachable(str(e)) from e
         return r.status_code in (200, 207)
 
+    def list_folder(self, remote_path):
+        """One level of a folder: name, path, size, whether it is a folder.
+
+        Depth 1 on purpose. Depth infinity on a large tree is slow and the
+        picker only ever shows one level at a time.
+        """
+        try:
+            r = requests.request("PROPFIND", self._dav_url(remote_path),
+                                 auth=(self.user, self.password),
+                                 headers={"Depth": "1"},
+                                 timeout=TIMEOUT, verify=self.verify)
+        except requests.exceptions.RequestException as e:
+            raise NextcloudUnreachable(_("Could not reach the server: {0}").format(e)) from e
+        if r.status_code == 404:
+            return []
+        if r.status_code not in (200, 207):
+            raise NextcloudError(_("Could not list the folder ({0})").format(r.status_code))
+
+        from urllib.parse import unquote
+        ns = {"d": "DAV:"}
+        root = ET.fromstring(r.text)
+        base = f"/remote.php/dav/files/{self.user}"
+        out = []
+        for resp in root.findall("d:response", ns):
+            href = unquote(resp.findtext("d:href", default="", namespaces=ns) or "")
+            path = href[len(base):] if href.startswith(base) else href
+            path = path.rstrip("/")
+            if not path or path == remote_path.rstrip("/"):
+                continue  # the folder itself
+            props = resp.find("d:propstat/d:prop", ns)
+            is_dir = props is not None and props.find("d:resourcetype/d:collection", ns) is not None
+            size = props.findtext("d:getcontentlength", default="", namespaces=ns) if props is not None else ""
+            out.append({
+                "name": path.rsplit("/", 1)[-1],
+                "path": path,
+                "is_folder": bool(is_dir),
+                "size": int(size) if size.isdigit() else None,
+            })
+        out.sort(key=lambda x: (not x["is_folder"], x["name"].lower()))
+        return out
+
     def move_path(self, src, dest):
         """MOVE, creating the destination's parent first.
 

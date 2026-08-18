@@ -17,11 +17,17 @@ everything than when it sits under the doctypes you chose.
 
 import posixpath
 import re
+import time
 import unicodedata
 
 import frappe
+from frappe import _
 
-from tabadul.nextcloud_client import NextcloudClient
+from tabadul.nextcloud_client import (
+    NextcloudClient,
+    NextcloudError,
+    NextcloudUnreachable,
+)
 
 # Kept in File.file_url so our own files are recognisable without a join or an
 # extra column on every File row in the site.
@@ -139,13 +145,58 @@ def stored_path(file_name):
 # ----------------------------------------------------------------- hooks
 
 
+def _upload_with_retry(remote, content, attempts=3):
+    """Retry only network failures, never rejections.
+
+    A 403 means the credential is wrong and will be wrong again in two
+    seconds. NextcloudUnreachable is a blip worth riding out, and riding it
+    out is what keeps the private-file hard fail from tripping on noise.
+    """
+    client = NextcloudClient()
+    last = None
+    for attempt in range(attempts):
+        try:
+            return client.upload_file(remote, content)
+        except NextcloudUnreachable as e:
+            last = e
+            if attempt < attempts - 1:
+                time.sleep(1.5 * (attempt + 1))
+    raise last
+
+
 def write_file(file_doc):
-    """hooks.write_file — replaces local storage for routed doctypes."""
+    """hooks.write_file — replaces local storage for routed doctypes.
+
+    Private files never fall back to local disk. That is the whole point: an
+    employee's ID scan that quietly lands on the ERP server because Nextcloud
+    blinked is exactly the outcome this app exists to prevent, and it would be
+    invisible until someone audited the disk. Public files may fall back —
+    a product image on local disk harms nobody, and blocking the upload would.
+    """
     if not should_route(file_doc):
         return file_doc.save_file_on_filesystem()
 
     remote = remote_path_for(file_doc)
-    NextcloudClient().upload_file(remote, file_doc._content)
+    try:
+        _upload_with_retry(remote, file_doc._content)
+    except (NextcloudError, NextcloudUnreachable) as e:
+        if file_doc.is_private:
+            frappe.log_error(
+                title="tabadul: private upload refused",
+                message=f"{file_doc.file_name} -> {remote}\n{e}",
+            )
+            frappe.throw(
+                _("This file is private and could not be stored on Nextcloud, "
+                  "so it has not been saved. It was not written to the server "
+                  "disk. Please retry once the connection is restored.<br><br>{0}"
+                  ).format(frappe.utils.escape_html(str(e))),
+                title=_("Private file not stored"),
+            )
+        # Public: degrade rather than block. migrate_attachments.plan() lists
+        # these later as candidates, since they look exactly like pre-rule files.
+        frappe.logger("tabadul").warning(
+            f"public attachment fell back to local disk: {file_doc.file_name} ({e})")
+        return file_doc.save_file_on_filesystem()
 
     # Document.insert() assigns the name before running validate(), so the name
     # is normally present here. It is not guaranteed for every code path that
