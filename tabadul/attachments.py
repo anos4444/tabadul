@@ -98,10 +98,10 @@ def rule_for(doctype, company=None):
 
     if company:
         for r in candidates:
-            if r.get("company") == company:
+            if r.get("for_company") == company:
                 return r
     for r in candidates:
-        if not r.get("company"):
+        if not r.get("for_company"):
             return r
     # Only company-specific rules exist and none matched: this document is not
     # routed. Falling back to another company's instance would be worse than

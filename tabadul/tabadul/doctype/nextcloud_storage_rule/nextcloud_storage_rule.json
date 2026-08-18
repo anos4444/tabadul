@@ -7,7 +7,7 @@
  "custom": 0,
  "field_order": [
   "document_type",
-  "company",
+  "for_company",
   "instance",
   "enabled",
   "path_template",
@@ -66,13 +66,13 @@
    "description": "Leave blank to use the default."
   },
   {
-   "fieldname": "company",
+   "fieldname": "for_company",
    "fieldtype": "Link",
    "options": "Company",
    "label": "Company",
    "in_list_view": 1,
    "columns": 2,
-   "description": "Optional. A rule naming a company wins over a general rule for the same doctype."
+   "description": "Optional. A rule naming a company wins over a general rule for the same doctype. Leave blank to cover every company."
   }
  ],
  "permissions": []

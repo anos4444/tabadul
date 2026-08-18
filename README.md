@@ -97,13 +97,34 @@ Two things are recorded rather than recomputed, for the same reason paths are:
 An instance cannot be deleted while `Nextcloud Stored File` rows point at it,
 while a storage rule still targets it, or while it is the site default.
 
+To see where a document's attachments would actually go — without uploading
+anything to find out:
+
+```python
+frappe.call("tabadul.api.explain_routing", doctype="Sales Invoice", company="Beta Co")
+# or let it read the company off the document itself
+frappe.call("tabadul.api.explain_routing", doctype="Sales Invoice", docname="ACC-SINV-0001")
+```
+
+It reports the matched rule, the resolved instance, its root and template, and
+every candidate rule that lost. It calls the same resolver the storage path
+calls rather than reimplementing it — a diagnostic that can disagree with the
+code it describes is worse than none. System Manager only, and it never returns
+the app-password.
+
 **Nothing about this is required.** With no instance defined, every rule
 resolves to the connection on `Nextcloud Settings` itself, exactly as before —
 existing installs need no data patch, and older mappings with a blank instance
 keep resolving to that same default.
 
-Company-based routing reads the `Company` link, so it needs ERPNext installed.
+Company-based routing reads a `Company` link, so it needs ERPNext installed.
 Everything else here works on plain Frappe.
+
+The column is stored as `for_company`, not `company`, and that is deliberate:
+Frappe fills a Link field *named* `company` from the session default, so a rule
+saved with no company came back company-scoped and then matched nothing for
+doctypes that have no company of their own. Renaming it is the fix; don't
+rename it back.
 
 ### Attaching a file already on Nextcloud
 

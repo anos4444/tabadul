@@ -255,7 +255,7 @@ class TestPrivateHardFail(unittest.TestCase):
     @staticmethod
     def _routed(attachments):
         """Pretend the file is routed, without needing a site."""
-        rule = _Stub(document_type="ToDo", enabled=1, company=None,
+        rule = _Stub(document_type="ToDo", enabled=1, for_company=None,
                      instance=None, path_template=None,
                      include_private=1, include_public=1)
         return _multi(
@@ -431,9 +431,9 @@ class TestMultiTenant(unittest.TestCase):
     def test_company_rule_beats_the_general_rule(self):
         from tabadul import attachments
 
-        general = _Stub(document_type="Sales Invoice", enabled=1, company=None,
+        general = _Stub(document_type="Sales Invoice", enabled=1, for_company=None,
                         instance="NC-Shared", path_template=None)
-        specific = _Stub(document_type="Sales Invoice", enabled=1, company="Beta Co",
+        specific = _Stub(document_type="Sales Invoice", enabled=1, for_company="Beta Co",
                          instance="NC-Beta", path_template=None)
 
         with mock.patch.object(attachments, "settings",
@@ -450,7 +450,7 @@ class TestMultiTenant(unittest.TestCase):
     def test_company_only_setup_refuses_an_unmatched_company(self):
         from tabadul import attachments
 
-        only_beta = _Stub(document_type="Sales Invoice", enabled=1, company="Beta Co",
+        only_beta = _Stub(document_type="Sales Invoice", enabled=1, for_company="Beta Co",
                           instance="NC-Beta", path_template=None)
         with mock.patch.object(attachments, "settings",
                                return_value=self._settings([only_beta])):
@@ -463,7 +463,7 @@ class TestMultiTenant(unittest.TestCase):
     def test_disabled_rule_is_ignored_even_when_the_company_matches(self):
         from tabadul import attachments
 
-        off = _Stub(document_type="Sales Invoice", enabled=0, company="Beta Co",
+        off = _Stub(document_type="Sales Invoice", enabled=0, for_company="Beta Co",
                     instance="NC-Beta", path_template=None)
         with mock.patch.object(attachments, "settings",
                                return_value=self._settings([off])):
@@ -488,7 +488,7 @@ class TestMultiTenant(unittest.TestCase):
         with mock.patch.object(attachments, "settings", return_value=s), \
              mock.patch.object(attachments.frappe, "get_cached_doc",
                                return_value=marker):
-            rule = _Stub(document_type="ToDo", enabled=1, company=None, instance=None)
+            rule = _Stub(document_type="ToDo", enabled=1, for_company=None, instance=None)
             self.assertIs(attachments.instance_for(rule), marker)
             # NEGATIVE CONTROL: a rule that DOES name an instance must win over
             # the default, or per-company routing silently collapses to one.
@@ -500,13 +500,13 @@ class TestMultiTenant(unittest.TestCase):
 
             with mock.patch.object(attachments.frappe, "get_cached_doc", _cached):
                 attachments.instance_for(_Stub(document_type="ToDo", enabled=1,
-                                               company=None, instance="NC-Beta"))
+                                               for_company=None, instance="NC-Beta"))
             self.assertEqual(asked["name"], "NC-Beta")
 
     def test_disabled_instance_refuses_private_and_degrades_public(self):
         from tabadul import attachments
 
-        rule = _Stub(document_type="ToDo", enabled=1, company=None, instance="NC-Off",
+        rule = _Stub(document_type="ToDo", enabled=1, for_company=None, instance="NC-Off",
                      path_template=None, include_private=1, include_public=1)
         off = _Stub(name="NC-Off", doctype="Nextcloud Instance", enabled=0,
                     storage_root="Frappe")
@@ -594,6 +594,55 @@ class TestMultiTenant(unittest.TestCase):
         self.assertEqual(used.get("deleted"), "/Frappe/X/y.pdf")
 
 
+class TestRuleCompanyFieldIsNotAutoFilled(unittest.TestCase):
+    """The rule's company column must NOT be called `company`.
+
+    Found on a live site, not in review: a rule was created through the REST
+    API with no company at all and came back with the session's default company
+    filled in — Frappe populates a Link field named `company` from the user or
+    global default. Every rule then silently became company-specific, and a
+    ToDo (which has no company of its own) matched none of them and stopped
+    being routed. Nothing errored; attachments just quietly stayed on local
+    disk. The fieldname is the fix, so the fieldname is what this pins.
+    """
+
+    def test_fieldname_avoids_frappe_s_company_default(self):
+        import json
+
+        here = pathlib.Path(__file__).resolve().parent.parent
+        rule = json.loads((here / "tabadul" / "doctype" / "nextcloud_storage_rule"
+                           / "nextcloud_storage_rule.json").read_text(encoding="utf-8"))
+        names = [f["fieldname"] for f in rule["fields"]]
+
+        self.assertNotIn("company", names,
+                         "a Link field named 'company' gets auto-filled from the "
+                         "session default, making every rule company-scoped")
+        self.assertIn("for_company", names)
+
+        # NEGATIVE CONTROL: it is still a Company link with a Company label —
+        # the fix is the fieldname, not dropping the feature.
+        field = next(f for f in rule["fields"] if f["fieldname"] == "for_company")
+        self.assertEqual(field["fieldtype"], "Link")
+        self.assertEqual(field["options"], "Company")
+        self.assertEqual(field["label"], "Company")
+
+    def test_the_resolver_reads_that_fieldname(self):
+        from tabadul import attachments
+
+        beta = _Stub(document_type="ToDo", enabled=1, for_company="Beta Co", instance="NC-Beta")
+        s = _Stub(storage_enabled=1, storage_rules=[beta])
+        with mock.patch.object(attachments, "settings", return_value=s):
+            self.assertIs(attachments.rule_for("ToDo", "Beta Co"), beta)
+            self.assertIsNone(attachments.rule_for("ToDo", "Alpha Co"))
+
+        # NEGATIVE CONTROL: a rule carrying the OLD fieldname must not be read
+        # as company-scoped by accident — it would match every company.
+        stale = _Stub(document_type="ToDo", enabled=1, company="Beta Co", instance="NC-Beta")
+        s2 = _Stub(storage_enabled=1, storage_rules=[stale])
+        with mock.patch.object(attachments, "settings", return_value=s2):
+            self.assertIs(attachments.rule_for("ToDo", "Alpha Co"), stale)
+
+
 class TestExplainRouting(unittest.TestCase):
     """The diagnostic must report what routing actually does, not a guess.
 
@@ -610,10 +659,10 @@ class TestExplainRouting(unittest.TestCase):
     def test_it_reports_the_same_rule_the_storage_path_would_use(self):
         from tabadul import api, attachments
 
-        general = _Stub(document_type="Sales Invoice", enabled=1, company=None,
+        general = _Stub(document_type="Sales Invoice", enabled=1, for_company=None,
                         instance=None, path_template=None,
                         include_private=1, include_public=0)
-        beta = _Stub(document_type="Sales Invoice", enabled=1, company="Beta Co",
+        beta = _Stub(document_type="Sales Invoice", enabled=1, for_company="Beta Co",
                      instance=None, path_template="Beta/{name}",
                      include_private=1, include_public=1)
         s = self._settings([general, beta])
@@ -653,7 +702,7 @@ class TestExplainRouting(unittest.TestCase):
     def test_it_never_returns_the_password(self):
         from tabadul import api, attachments
 
-        s = self._settings([_Stub(document_type="ToDo", enabled=1, company=None,
+        s = self._settings([_Stub(document_type="ToDo", enabled=1, for_company=None,
                                   instance=None, path_template=None,
                                   include_private=1, include_public=1)])
         s.app_password = "super-secret-app-password"

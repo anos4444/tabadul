@@ -237,7 +237,7 @@ def explain_routing(doctype, company=None, docname=None):
     is_instance = target.doctype == "Nextcloud Instance"
 
     candidates = [
-        {"company": r.get("company") or None,
+        {"company": r.get("for_company") or None,
          "instance": r.get("instance") or None,
          "enabled": bool(r.enabled)}
         for r in (s.get("storage_rules") or []) if r.document_type == doctype
@@ -259,7 +259,7 @@ def explain_routing(doctype, company=None, docname=None):
         "doctype": doctype,
         "company": company,
         "routed": True,
-        "matched_rule_company": rule.get("company") or None,
+        "matched_rule_company": rule.get("for_company") or None,
         "instance": target.name if is_instance else None,
         "instance_enabled": bool(target.get("enabled")) if is_instance else True,
         "using_settings_connection": not is_instance,
