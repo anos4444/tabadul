@@ -237,17 +237,36 @@ def delete_file_data_content(file_doc, only_thumbnail=False):
     if behaviour == "Keep":
         return
 
-    client = NextcloudClient()
-    if behaviour == "Delete":
-        client.delete_path(remote)
-        return
+    # Retiring the stored object must never prevent the user from deleting
+    # their own record. If Nextcloud is unreachable, or the object was removed
+    # on the platform directly, the File row still has to go — otherwise the
+    # attachment becomes permanently undeletable and the person is stuck with
+    # no way out from inside ERPNext. The failure is recorded instead, because
+    # an object left behind is a cleanup task, not a reason to block work.
+    try:
+        client = NextcloudClient()
+        if behaviour == "Delete":
+            client.delete_path(remote)
+            return
 
-    root = (s.get("storage_root") or "Frappe").strip("/")
-    archive = (s.get("archive_folder") or "_deleted").strip("/")
-    rel = remote.lstrip("/")
-    if rel.startswith(root + "/"):
-        rel = rel[len(root) + 1:]
-    client.move_path(remote, f"/{root}/{archive}/{rel}")
+        root = (s.get("storage_root") or "Frappe").strip("/")
+        archive = (s.get("archive_folder") or "_deleted").strip("/")
+        rel = remote.lstrip("/")
+        if rel.startswith(root + "/"):
+            rel = rel[len(root) + 1:]
+        moved = client.move_path(remote, f"/{root}/{archive}/{rel}")
+        if moved is None:
+            frappe.logger("tabadul").info(
+                f"nothing to retire at {remote}; it was already gone")
+    except Exception as e:
+        frappe.log_error(
+            title="tabadul: could not retire stored file",
+            message=(f"file: {file_doc.name}\nremote: {remote}\n"
+                     f"behaviour: {behaviour}\n\n{e}\n\n"
+                     "The attachment was deleted in Frappe regardless. The "
+                     "object may still exist on Nextcloud and can be removed "
+                     "there if it is no longer wanted."),
+        )
 
 
 def before_write_file(file_size=None, **kwargs):

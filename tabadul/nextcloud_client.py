@@ -366,6 +366,11 @@ class NextcloudClient:
                                  timeout=TIMEOUT, verify=self.verify)
         except requests.exceptions.RequestException as e:
             raise NextcloudUnreachable(str(e)) from e
+        if r.status_code == 404:
+            # The source is already gone. The goal is that it no longer sits at
+            # the live path, and it does not. Raising here would block the
+            # caller from finishing a delete it has every right to complete.
+            return None
         if r.status_code not in (201, 204):
             raise NextcloudError(_("Could not move the file ({0})").format(r.status_code))
         return dest

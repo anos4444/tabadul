@@ -305,6 +305,73 @@ class TestPrivateHardFail(unittest.TestCase):
         self.assertEqual(calls["blip"], 3, "a network blip was not retried")
 
 
+class TestDeleteIsNeverBlocked(unittest.TestCase):
+    """Deleting a record must not depend on the storage backend.
+
+    Regression from production: a stored object had been removed on Nextcloud
+    directly, so MOVE returned 404, the hook raised, and the attachment became
+    permanently undeletable from inside ERPNext. A backend problem is ours to
+    log, not the user's to be trapped by.
+    """
+
+    def _stub(self):
+        f = _Stub(name="F1", file_url="/api/method/tabadul.api.download_attachment?file=F1",
+                  is_private=1, is_folder=0)
+        f.deleted_locally = False
+
+        def _local(only_thumbnail=False):
+            f.deleted_locally = True
+
+        f.delete_file_from_filesystem = _local
+        return f
+
+    def test_unreachable_backend_does_not_raise(self):
+        from tabadul import attachments
+        from tabadul.nextcloud_client import NextcloudUnreachable
+
+        class _Dead:
+            def delete_path(self, p):
+                raise NextcloudUnreachable("down")
+
+            def move_path(self, a, b):
+                raise NextcloudUnreachable("down")
+
+        with mock.patch.object(attachments, "stored_path", return_value="/Frappe/X/y.pdf"), \
+             mock.patch.object(attachments, "settings",
+                               return_value=_Stub(delete_behaviour="Archive",
+                                                  storage_root="Frappe",
+                                                  archive_folder="_deleted")), \
+             mock.patch.object(attachments.frappe.db, "count", return_value=0), \
+             mock.patch.object(attachments, "NextcloudClient", _Dead):
+            # Must return normally. Raising is the bug.
+            attachments.delete_file_data_content(self._stub())
+
+    def test_missing_object_is_not_an_error(self):
+        # NEGATIVE CONTROL: prove move_path itself reports 404 as "already
+        # gone" rather than success for every status, which would hide real
+        # failures like a 403.
+        from tabadul.nextcloud_client import NextcloudClient, NextcloudError
+
+        class _Resp:
+            def __init__(self, code):
+                self.status_code = code
+
+        client = NextcloudClient.__new__(NextcloudClient)
+        client.base = "https://x"
+        client.user = "u"
+        client.password = "p"
+        client.verify = True
+
+        with mock.patch.object(client, "ensure_folder", lambda *_: True):
+            with mock.patch("tabadul.nextcloud_client.requests.request",
+                            return_value=_Resp(404)):
+                self.assertIsNone(client.move_path("/a/b", "/c/d"))
+            with mock.patch("tabadul.nextcloud_client.requests.request",
+                            return_value=_Resp(403)):
+                with self.assertRaises(NextcloudError):
+                    client.move_path("/a/b", "/c/d")
+
+
 class TestDownloadPermission(unittest.TestCase):
     """The proxy is the security boundary; this is the test that matters most.
 
