@@ -14,8 +14,15 @@ never routed to Nextcloud.
 import frappe
 from frappe.core.doctype.file.file import File
 
-from tabadul.attachments import PROXY_ROUTE, is_remote, stored_path
+from tabadul.attachments import PROXY_ROUTE, is_remote, stored_ref
 from tabadul.nextcloud_client import NextcloudClient
+
+
+def _client(ref):
+    """Talk to the server this particular file lives on."""
+    if ref and ref.get("instance"):
+        return NextcloudClient(frappe.get_cached_doc("Nextcloud Instance", ref.get("instance")))
+    return NextcloudClient()
 
 # Mirrors frappe.core.doctype.file.file.FILE_ENCODING_OPTIONS
 _ENCODINGS = ("utf-8", "windows-1250", "windows-1252")
@@ -23,8 +30,8 @@ _ENCODINGS = ("utf-8", "windows-1250", "windows-1252")
 
 class NextcloudFile(File):
     def get_content(self, encodings=None):
-        remote = stored_path(self.name) if is_remote(self) else None
-        if not remote:
+        ref = self._nextcloud_ref()
+        if not ref or not ref.remote_path:
             return super().get_content(encodings=encodings)
 
         # A freshly created doc still carries its bytes in memory; core's path
@@ -35,7 +42,7 @@ class NextcloudFile(File):
         if encodings is None:
             encodings = _ENCODINGS
 
-        self._content = NextcloudClient().download_file(remote)
+        self._content = _client(ref).download_file(ref.remote_path)
         for encoding in encodings:
             try:
                 self._content = self._content.decode(encoding)
@@ -47,8 +54,8 @@ class NextcloudFile(File):
     def exists_on_disk(self):
         if not is_remote(self):
             return super().exists_on_disk()
-        remote = stored_path(self.name)
-        return bool(remote) and NextcloudClient().path_exists(remote)
+        ref = self._nextcloud_ref()
+        return bool(ref and ref.remote_path) and _client(ref).path_exists(ref.remote_path)
 
     def get_full_path(self):
         # Core would treat our proxy URL as a filesystem path and throw.
@@ -81,9 +88,11 @@ def _adopt_deduplicated(doc):
     if not source or source == doc.name:
         return None
 
-    remote = stored_path(source)
-    if not remote:
+    src = stored_ref(source)
+    if not src or not src.remote_path:
         return None
+    doc.flags.tabadul_instance = src.get("instance")
+    remote = src.remote_path
 
     doc.db_set("file_url", f"{PROXY_ROUTE}?file={frappe.utils.quoted(doc.name)}",
                update_modified=False)
@@ -129,6 +138,7 @@ def after_insert(doc, method=None):
         "attached_to_name": doc.attached_to_name,
         "is_private": doc.is_private,
         "file_size": doc.file_size,
+        "instance": doc.flags.get("tabadul_instance"),
     }).insert(ignore_permissions=True)
 
 

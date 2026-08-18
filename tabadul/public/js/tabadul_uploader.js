@@ -60,7 +60,10 @@ tabadul.open_nextcloud_picker = function ({ doctype, docname, dialog, uploader }
 
 		frappe.call({
 			method: "tabadul.api.browse",
-			args: { path: path || null },
+			// The document decides which Nextcloud is browsed: with several
+			// instances configured, listing the default one would offer files
+			// this document could never read back.
+			args: { path: path || null, doctype, docname },
 			callback: (r) => {
 				if (!r.message) return render_error(__("No response from the server."));
 				current_path = r.message.path;

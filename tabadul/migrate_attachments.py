@@ -36,12 +36,35 @@ def _candidates(doctype, limit=None):
     return [r for r in rows if r.file_url and not r.file_url.startswith(PROXY_ROUTE)]
 
 
+def _any_rule(doctype):
+    """Any enabled rule for this doctype, company-specific or not."""
+    from tabadul.attachments import settings
+    for r in settings().get("storage_rules") or []:
+        if r.document_type == doctype and r.enabled:
+            return r
+    return None
+
+
+def _client_for_file(doc, cache):
+    """The client for one file's own instance, built once per instance."""
+    from tabadul.attachments import instance_for_doc
+    target = instance_for_doc(doc.attached_to_doctype, doc.attached_to_name)
+    key = target.name if target.doctype == "Nextcloud Instance" else "__settings__"
+    if key not in cache:
+        cache[key] = (NextcloudClient(target),
+                      target.name if key != "__settings__" else None)
+    return cache[key]
+
+
 @frappe.whitelist()
 def plan(doctype, limit=None):
     """What a migration would do. Writes nothing."""
     frappe.only_for("System Manager")
 
-    rule = rule_for(doctype)
+    # Company-specific rules mean "is this doctype routed at all?" now depends
+    # on the document. Any enabled rule for the doctype makes migration
+    # possible; each file resolves its own instance below.
+    rule = _any_rule(doctype)
     rows = _candidates(doctype, int(limit) if limit else None)
     total = sum(int(r.file_size or 0) for r in rows)
 
@@ -71,7 +94,7 @@ def plan(doctype, limit=None):
 def run(doctype, limit=None, delete_local=0, dry_run=1):
     """Queue the migration. Returns immediately with the job name."""
     frappe.only_for("System Manager")
-    if not rule_for(doctype):
+    if not _any_rule(doctype):
         frappe.throw(_("No storage rule is configured for {0}").format(doctype))
 
     job = frappe.enqueue(
@@ -90,7 +113,7 @@ def run(doctype, limit=None, delete_local=0, dry_run=1):
 def migrate(doctype, limit=None, delete_local=0, dry_run=0):
     """Do the work. Safe to re-run: already-migrated files are skipped."""
     rows = _candidates(doctype, limit)
-    client = NextcloudClient() if not dry_run else None
+    clients = {}
 
     moved = skipped = failed = 0
     freed = 0
@@ -122,6 +145,7 @@ def migrate(doctype, limit=None, delete_local=0, dry_run=0):
             continue
 
         try:
+            client, instance_name = _client_for_file(doc, clients)
             with open(local_path, "rb") as f:
                 content = f.read()
             client.upload_file(remote, content)
@@ -141,6 +165,7 @@ def migrate(doctype, limit=None, delete_local=0, dry_run=0):
                 "attached_to_name": doc.attached_to_name,
                 "is_private": doc.is_private,
                 "file_size": doc.file_size,
+                "instance": instance_name,
             }).insert(ignore_permissions=True)
 
         # Only after the upload is confirmed and the mapping is recorded.
@@ -182,20 +207,29 @@ def verify(doctype, limit=None):
     rows = frappe.get_all(
         "Nextcloud Stored File",
         filters={"attached_to_doctype": doctype},
-        fields=["name", "file", "remote_path"],
+        fields=["name", "file", "remote_path", "instance"],
         limit_page_length=int(limit) if limit else 0,
     )
-    client = NextcloudClient()
+    # Checked against the instance each row was written to, not the current
+    # default: otherwise repointing a rule would report every older file as
+    # missing when it is sitting safely on the previous server.
+    clients = {}
 
     present = missing = 0
     missing_paths = []
     for r in rows:
-        if client.path_exists(r.remote_path):
+        key = r.instance or "__settings__"
+        if key not in clients:
+            clients[key] = NextcloudClient(
+                frappe.get_cached_doc("Nextcloud Instance", r.instance)
+                if r.instance else None)
+        if clients[key].path_exists(r.remote_path):
             present += 1
         else:
             missing += 1
             if len(missing_paths) < 25:
-                missing_paths.append({"file": r.file, "remote_path": r.remote_path})
+                missing_paths.append({"file": r.file, "remote_path": r.remote_path,
+                                      "instance": r.instance})
 
     return {
         "doctype": doctype,

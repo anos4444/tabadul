@@ -7,6 +7,8 @@
  "custom": 0,
  "field_order": [
   "document_type",
+  "company",
+  "instance",
   "enabled",
   "path_template",
   "include_private",
@@ -53,6 +55,24 @@
    "default": "1",
    "in_list_view": 1,
    "columns": 1
+  },
+  {
+   "fieldname": "instance",
+   "fieldtype": "Link",
+   "options": "Nextcloud Instance",
+   "label": "Nextcloud",
+   "in_list_view": 1,
+   "columns": 2,
+   "description": "Leave blank to use the default."
+  },
+  {
+   "fieldname": "company",
+   "fieldtype": "Link",
+   "options": "Company",
+   "label": "Company",
+   "in_list_view": 1,
+   "columns": 2,
+   "description": "Optional. A rule naming a company wins over a general rule for the same doctype."
   }
  ],
  "permissions": []

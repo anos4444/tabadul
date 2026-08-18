@@ -1,0 +1,138 @@
+{
+ "doctype": "DocType",
+ "name": "Nextcloud Instance",
+ "module": "Tabadul",
+ "engine": "InnoDB",
+ "custom": 0,
+ "autoname": "field:instance_name",
+ "track_changes": 1,
+ "field_order": [
+  "instance_name",
+  "enabled",
+  "col_h",
+  "connection_status",
+  "sec_conn",
+  "base_url",
+  "service_user",
+  "app_password",
+  "col_conn",
+  "verify_tls",
+  "sec_storage",
+  "storage_root",
+  "default_path_template",
+  "col_st",
+  "delete_behaviour",
+  "archive_folder"
+ ],
+ "fields": [
+  {
+   "fieldname": "instance_name",
+   "fieldtype": "Data",
+   "label": "Name",
+   "reqd": 1,
+   "unique": 1,
+   "in_list_view": 1,
+   "description": "A short name for this Nextcloud, e.g. HR or the company it serves."
+  },
+  {
+   "fieldname": "enabled",
+   "fieldtype": "Check",
+   "label": "Enabled",
+   "default": "1",
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "col_h",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "connection_status",
+   "fieldtype": "Small Text",
+   "label": "Last connection status",
+   "read_only": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "sec_conn",
+   "fieldtype": "Section Break",
+   "label": "Connection"
+  },
+  {
+   "fieldname": "base_url",
+   "fieldtype": "Data",
+   "label": "Server URL",
+   "reqd": 1,
+   "description": "https://example.com — no trailing slash"
+  },
+  {
+   "fieldname": "service_user",
+   "fieldtype": "Data",
+   "label": "Service account",
+   "reqd": 1
+  },
+  {
+   "fieldname": "app_password",
+   "fieldtype": "Password",
+   "label": "App password",
+   "description": "An app password, not the account password"
+  },
+  {
+   "fieldname": "col_conn",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "verify_tls",
+   "fieldtype": "Check",
+   "label": "Verify TLS certificate",
+   "default": "1",
+   "description": "Only disable this on a test server"
+  },
+  {
+   "fieldname": "sec_storage",
+   "fieldtype": "Section Break",
+   "label": "Storage layout"
+  },
+  {
+   "fieldname": "storage_root",
+   "fieldtype": "Data",
+   "label": "Root folder",
+   "default": "Frappe"
+  },
+  {
+   "fieldname": "default_path_template",
+   "fieldtype": "Data",
+   "label": "Default path template",
+   "default": "{doctype}/{name}",
+   "description": "Accepts fields of the attached document, e.g. Employee/{employee_number} - {employee_name}"
+  },
+  {
+   "fieldname": "col_st",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "delete_behaviour",
+   "fieldtype": "Select",
+   "label": "When an attachment is deleted",
+   "options": "Archive\nDelete\nKeep",
+   "default": "Archive"
+  },
+  {
+   "fieldname": "archive_folder",
+   "fieldtype": "Data",
+   "label": "Deleted folder",
+   "default": "_deleted",
+   "depends_on": "eval:doc.delete_behaviour=='Archive'"
+  }
+ ],
+ "permissions": [
+  {
+   "role": "System Manager",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "delete": 1,
+   "report": 1,
+   "export": 1
+  }
+ ]
+}

@@ -9,6 +9,7 @@ a storage rule is actually configured, and say so rather than passing quietly.
 """
 
 import unicodedata
+import contextlib
 import unittest
 from unittest import mock
 
@@ -22,6 +23,14 @@ from tabadul.attachments import (
     sanitize,
     should_route,
 )
+
+
+@contextlib.contextmanager
+def _multi(*patches):
+    with contextlib.ExitStack() as stack:
+        for p in patches:
+            stack.enter_context(p)
+        yield
 
 
 class _Stub(dict):
@@ -242,16 +251,34 @@ class TestPrivateHardFail(unittest.TestCase):
         f.save_file_on_filesystem = _local
         return f
 
+    @staticmethod
+    def _routed(attachments):
+        """Pretend the file is routed, without needing a site."""
+        rule = _Stub(document_type="ToDo", enabled=1, company=None,
+                     instance=None, path_template=None,
+                     include_private=1, include_public=1)
+        return _multi(
+            mock.patch.object(attachments, "route_for", return_value=rule),
+            mock.patch.object(attachments, "instance_for",
+                              return_value=_Stub(doctype="Nextcloud Settings",
+                                                 storage_root="Frappe")),
+            mock.patch.object(attachments, "remote_path_for",
+                              return_value="/Frappe/ToDo/abc/x.pdf"),
+            mock.patch.object(attachments, "NextcloudClient", lambda *a, **k: None),
+        )
+
     def test_private_upload_failure_raises_and_does_not_fall_back(self):
         from tabadul import attachments
         from tabadul.nextcloud_client import NextcloudUnreachable
 
         f = self._stub(is_private=1)
-        with mock.patch.object(attachments, "should_route", return_value=True), \
-             mock.patch.object(attachments, "remote_path_for", return_value="/Frappe/ToDo/abc/x.pdf"), \
+        with self._routed(attachments), \
              mock.patch.object(attachments, "_upload_with_retry",
                                side_effect=NextcloudUnreachable("down")):
-            with self.assertRaises(Exception):
+            # Specifically the refusal frappe.throw raises. `Exception` would
+            # also be satisfied by the stub blowing up on an unmocked call,
+            # which is how this passed while the test was actually broken.
+            with self.assertRaises(frappe.ValidationError):
                 attachments.write_file(f)
 
         self.assertFalse(f.fell_back,
@@ -264,8 +291,7 @@ class TestPrivateHardFail(unittest.TestCase):
         from tabadul.nextcloud_client import NextcloudUnreachable
 
         f = self._stub(is_private=0)
-        with mock.patch.object(attachments, "should_route", return_value=True), \
-             mock.patch.object(attachments, "remote_path_for", return_value="/Frappe/ToDo/abc/x.pdf"), \
+        with self._routed(attachments), \
              mock.patch.object(attachments, "_upload_with_retry",
                                side_effect=NextcloudUnreachable("down")):
             attachments.write_file(f)
@@ -336,15 +362,31 @@ class TestDeleteIsNeverBlocked(unittest.TestCase):
             def move_path(self, a, b):
                 raise NextcloudUnreachable("down")
 
-        with mock.patch.object(attachments, "stored_path", return_value="/Frappe/X/y.pdf"), \
+        reached = {"client": False}
+
+        class _Watched(_Dead):
+            def __init__(self, *a, **k):
+                reached["client"] = True
+
+        with mock.patch.object(attachments, "stored_ref",
+                               return_value=_Stub(remote_path="/Frappe/X/y.pdf",
+                                                  instance=None)), \
              mock.patch.object(attachments, "settings",
                                return_value=_Stub(delete_behaviour="Archive",
                                                   storage_root="Frappe",
                                                   archive_folder="_deleted")), \
              mock.patch.object(attachments.frappe.db, "count", return_value=0), \
-             mock.patch.object(attachments, "NextcloudClient", _Dead):
+             mock.patch.object(attachments, "NextcloudClient", _Watched):
             # Must return normally. Raising is the bug.
             attachments.delete_file_data_content(self._stub())
+
+        # NEGATIVE CONTROL: the delete path must actually have reached the
+        # backend. Without this the test also passes when no mapping is found
+        # and the function returns before touching Nextcloud at all — which is
+        # how it would have passed silently after stored_path stopped being
+        # called.
+        self.assertTrue(reached["client"],
+                        "the backend was never contacted; this test proves nothing")
 
     def test_missing_object_is_not_an_error(self):
         # NEGATIVE CONTROL: prove move_path itself reports 404 as "already
@@ -370,6 +412,185 @@ class TestDeleteIsNeverBlocked(unittest.TestCase):
                             return_value=_Resp(403)):
                 with self.assertRaises(NextcloudError):
                     client.move_path("/a/b", "/c/d")
+
+
+class TestMultiTenant(unittest.TestCase):
+    """One ERP, several companies, several Nextclouds.
+
+    The failure this guards against is cross-tenant leakage: company A's
+    document resolving to company B's server, or a file written to one server
+    being read back from another after a rule is repointed.
+    """
+
+    def _settings(self, rules, default_instance=None):
+        return _Stub(storage_enabled=1, storage_rules=rules,
+                     default_instance=default_instance,
+                     storage_root="Frappe", default_path_template="{doctype}/{name}")
+
+    def test_company_rule_beats_the_general_rule(self):
+        from tabadul import attachments
+
+        general = _Stub(document_type="Sales Invoice", enabled=1, company=None,
+                        instance="NC-Shared", path_template=None)
+        specific = _Stub(document_type="Sales Invoice", enabled=1, company="Beta Co",
+                         instance="NC-Beta", path_template=None)
+
+        with mock.patch.object(attachments, "settings",
+                               return_value=self._settings([general, specific])):
+            self.assertEqual(
+                attachments.rule_for("Sales Invoice", "Beta Co").instance, "NC-Beta")
+            # NEGATIVE CONTROL: another company must NOT get Beta's instance,
+            # or "company-aware" would mean "picks whichever rule it finds".
+            self.assertEqual(
+                attachments.rule_for("Sales Invoice", "Alpha Co").instance, "NC-Shared")
+            self.assertEqual(
+                attachments.rule_for("Sales Invoice", None).instance, "NC-Shared")
+
+    def test_company_only_setup_refuses_an_unmatched_company(self):
+        from tabadul import attachments
+
+        only_beta = _Stub(document_type="Sales Invoice", enabled=1, company="Beta Co",
+                          instance="NC-Beta", path_template=None)
+        with mock.patch.object(attachments, "settings",
+                               return_value=self._settings([only_beta])):
+            self.assertIsNotNone(attachments.rule_for("Sales Invoice", "Beta Co"))
+            # The whole point: Alpha's invoice must stay on local disk rather
+            # than land in Beta's Nextcloud.
+            self.assertIsNone(attachments.rule_for("Sales Invoice", "Alpha Co"))
+            self.assertIsNone(attachments.rule_for("Sales Invoice", None))
+
+    def test_disabled_rule_is_ignored_even_when_the_company_matches(self):
+        from tabadul import attachments
+
+        off = _Stub(document_type="Sales Invoice", enabled=0, company="Beta Co",
+                    instance="NC-Beta", path_template=None)
+        with mock.patch.object(attachments, "settings",
+                               return_value=self._settings([off])):
+            self.assertIsNone(attachments.rule_for("Sales Invoice", "Beta Co"))
+
+    def test_legacy_install_still_resolves_to_settings(self):
+        from tabadul import attachments
+
+        s = self._settings([], default_instance=None)
+        with mock.patch.object(attachments, "settings", return_value=s):
+            # No instance on the rule, none as default: the connection on
+            # Settings itself. This is what keeps existing sites working.
+            self.assertIs(attachments.instance_for(None), s)
+            self.assertIs(attachments.instance_for(
+                _Stub(instance=None, get=lambda k, d=None: None)), s)
+
+    def test_default_instance_is_used_when_a_rule_names_none(self):
+        from tabadul import attachments
+
+        marker = _Stub(name="NC-Default", doctype="Nextcloud Instance")
+        s = self._settings([], default_instance="NC-Default")
+        with mock.patch.object(attachments, "settings", return_value=s), \
+             mock.patch.object(attachments.frappe, "get_cached_doc",
+                               return_value=marker):
+            rule = _Stub(document_type="ToDo", enabled=1, company=None, instance=None)
+            self.assertIs(attachments.instance_for(rule), marker)
+            # NEGATIVE CONTROL: a rule that DOES name an instance must win over
+            # the default, or per-company routing silently collapses to one.
+            asked = {}
+
+            def _cached(dt, name):
+                asked["name"] = name
+                return _Stub(name=name, doctype="Nextcloud Instance")
+
+            with mock.patch.object(attachments.frappe, "get_cached_doc", _cached):
+                attachments.instance_for(_Stub(document_type="ToDo", enabled=1,
+                                               company=None, instance="NC-Beta"))
+            self.assertEqual(asked["name"], "NC-Beta")
+
+    def test_disabled_instance_refuses_private_and_degrades_public(self):
+        from tabadul import attachments
+
+        rule = _Stub(document_type="ToDo", enabled=1, company=None, instance="NC-Off",
+                     path_template=None, include_private=1, include_public=1)
+        off = _Stub(name="NC-Off", doctype="Nextcloud Instance", enabled=0,
+                    storage_root="Frappe")
+
+        def _file(is_private):
+            f = _Stub(file_name="x.pdf", is_private=is_private, is_folder=0,
+                      attached_to_doctype="ToDo", attached_to_name="abc")
+            f._content = b"bytes"
+            f.flags = _Stub()
+            f.fell_back = False
+
+            def _local():
+                f.fell_back = True
+                return {"file_url": "/private/files/x.pdf"}
+
+            f.save_file_on_filesystem = _local
+            return f
+
+        uploaded = {"count": 0}
+
+        def _never(*a, **k):
+            uploaded["count"] += 1
+
+        with _multi(
+            mock.patch.object(attachments, "route_for", return_value=rule),
+            mock.patch.object(attachments, "instance_for", return_value=off),
+            mock.patch.object(attachments, "remote_path_for",
+                              return_value="/Frappe/ToDo/abc/x.pdf"),
+            mock.patch.object(attachments, "NextcloudClient", lambda *a, **k: None),
+            mock.patch.object(attachments, "_upload_with_retry", _never),
+        ):
+            private = _file(1)
+            with self.assertRaises(frappe.ValidationError):
+                attachments.write_file(private)
+            self.assertFalse(private.fell_back,
+                             "a private file landed on local disk because an "
+                             "instance was disabled")
+
+            # NEGATIVE CONTROL: public must still degrade, or "disabled" would
+            # just mean "block everything" and the distinction is doing no work.
+            public = _file(0)
+            attachments.write_file(public)
+            self.assertTrue(public.fell_back)
+
+        self.assertEqual(uploaded["count"], 0,
+                         "a disabled instance was contacted anyway")
+
+    def test_delete_uses_the_instance_recorded_at_upload_time(self):
+        from tabadul import attachments
+
+        used = {}
+
+        class _Client:
+            def __init__(self, target=None):
+                used["target"] = getattr(target, "name", None)
+
+            def delete_path(self, p):
+                used["deleted"] = p
+
+            def move_path(self, a, b):
+                used["moved"] = (a, b)
+
+        f = _Stub(name="F1", is_folder=0,
+                  file_url="/api/method/tabadul.api.download_attachment?file=F1")
+        f.delete_file_from_filesystem = lambda only_thumbnail=False: None
+
+        old_home = _Stub(name="NC-Old", doctype="Nextcloud Instance",
+                         delete_behaviour="Delete", storage_root="Frappe",
+                         archive_folder="_deleted")
+
+        with mock.patch.object(attachments, "stored_ref",
+                               return_value=_Stub(remote_path="/Frappe/X/y.pdf",
+                                                  instance="NC-Old")), \
+             mock.patch.object(attachments.frappe, "get_cached_doc",
+                               return_value=old_home), \
+             mock.patch.object(attachments.frappe.db, "count", return_value=0), \
+             mock.patch.object(attachments, "NextcloudClient", _Client), \
+             mock.patch.object(attachments, "settings",
+                               return_value=self._settings([])):
+            attachments.delete_file_data_content(f)
+
+        # The file was written to NC-Old; repointing the rule elsewhere must not
+        # send the delete to a server that never held it.
+        self.assertEqual(used.get("target"), "NC-Old")
+        self.assertEqual(used.get("deleted"), "/Frappe/X/y.pdf")
 
 
 class TestDownloadPermission(unittest.TestCase):

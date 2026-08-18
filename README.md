@@ -66,12 +66,57 @@ rejected again, and the person needs the error now.
 The consequence, stated plainly: while Nextcloud is unreachable, staff cannot
 attach private documents at all. That is the setting working, not failing.
 
+### Several companies, several Nextclouds
+
+One ERP often serves more than one company, and those companies do not always
+share a file server. **Nextcloud Instance** is a full doctype — listable,
+creatable, deletable — holding one server and the account tabadul uses on it.
+A storage rule may name an instance and a company:
+
+| Doctype | Company | Nextcloud | Effect |
+|---|---|---|---|
+| Sales Invoice | *(blank)* | NC-Shared | every company's invoices, unless overridden |
+| Sales Invoice | Beta Co | NC-Beta | Beta's invoices only |
+| Employee | Beta Co | NC-Beta-HR | one company, a second server |
+
+Resolution order for a document: **the rule matching its company**, then the
+general rule for its doctype, then no routing at all. That last step is
+deliberate — where only company-specific rules exist and none match, the file
+stays on local disk rather than landing in another company's Nextcloud. A
+routing mistake that crosses tenants is worse than one that doesn't route.
+
+Two things are recorded rather than recomputed, for the same reason paths are:
+
+- **The instance is written onto the mapping at upload time.** Repointing a
+  rule at a new server later does not send reads, deletes or verification
+  hunting for old files somewhere they were never written.
+- **A disabled instance refuses private uploads rather than falling back.**
+  Unticking *Enabled* is deliberate, but it must not quietly become a route
+  onto the ERP disk; it behaves exactly like an unreachable server.
+
+An instance cannot be deleted while `Nextcloud Stored File` rows point at it,
+while a storage rule still targets it, or while it is the site default.
+
+**Nothing about this is required.** With no instance defined, every rule
+resolves to the connection on `Nextcloud Settings` itself, exactly as before —
+existing installs need no data patch, and older mappings with a blank instance
+keep resolving to that same default.
+
+Company-based routing reads the `Company` link, so it needs ERPNext installed.
+Everything else here works on plain Frappe.
+
 ### Attaching a file already on Nextcloud
 
 The upload dialog gains a **Nextcloud** button beside "Upload from device". It
 attaches an existing Nextcloud file *by reference* — no re-upload, no second
 copy. Ordinary uploads on a routed doctype already land on Nextcloud through
 the storage hook, so a second upload path would only be a way to get it wrong.
+
+It is **off by default** — `Nextcloud Settings → Allow attaching existing
+Nextcloud files`. Browsing the service account's folder tree is a wider
+capability than attaching a file, and ordinary uploads already reach Nextcloud
+without it. The picker browses the instance the *document* is routed to, so it
+cannot offer a file from a server that document could never read back from.
 
 This uses `frappe.ui.FileUploader.UploadOptions`, a supported registry that
 core maps into the dialog as `additional_upload_handlers`. Nothing is patched,

@@ -74,7 +74,7 @@ def download_attachment(file):
     row — a File is readable by more people than the document it hangs off,
     and using the File's own permission would quietly widen access.
     """
-    from tabadul.attachments import is_remote, stored_path
+    from tabadul.attachments import is_remote, stored_ref
 
     if frappe.session.user == "Guest":
         raise frappe.PermissionError(_("Login required"))
@@ -95,12 +95,14 @@ def download_attachment(file):
         if not frappe.has_permission("File", "read", doc=doc.name):
             raise frappe.PermissionError(_("Not permitted to read this file"))
 
-    remote = stored_path(doc.name)
-    if not remote:
+    ref = stored_ref(doc.name)
+    if not ref or not ref.remote_path:
         frappe.throw(_("No remote path is recorded for this file: {0}").format(file),
                      exc=frappe.DoesNotExistError)
 
-    content = NextcloudClient().download_file(remote)
+    client = (NextcloudClient(frappe.get_cached_doc("Nextcloud Instance", ref.instance))
+              if ref.get("instance") else NextcloudClient())
+    content = client.download_file(ref.remote_path)
 
     frappe.local.response.filename = doc.file_name
     frappe.local.response.filecontent = content
@@ -127,7 +129,7 @@ def storage_stats():
 
 
 @frappe.whitelist()
-def browse(path=None):
+def browse(path=None, doctype=None, docname=None):
     """List one level of the Nextcloud tree, for the attach picker.
 
     Write permission on the target is not checked here because this only
@@ -135,25 +137,28 @@ def browse(path=None):
     picker can already reach through the same account. Attaching is where the
     permission check belongs, and attach_remote does it.
     """
-    from tabadul.attachments import settings
+    from tabadul.attachments import instance_for_doc, settings
 
     if frappe.session.user == "Guest":
         raise frappe.PermissionError(_("Login required"))
 
-    s = settings()
-    if not s.get("enable_upload_picker"):
+    if not settings().get("enable_upload_picker"):
         raise frappe.PermissionError(
             _("Attaching existing Nextcloud files is disabled"))
 
-    root = "/" + (s.get("storage_root") or "Frappe").strip("/")
-    target = path or root
+    # Browse the instance this document's attachments are routed to, so the
+    # picker cannot offer a file from a server the document never reads from.
+    target = instance_for_doc(doctype, docname)
+    root = "/" + (target.get("storage_root") or "Frappe").strip("/")
+    here = path or root
 
     # Keep the picker inside the configured root: the service account may hold
     # unrelated material and the picker is not an excuse to browse it.
-    if not (target == root or target.startswith(root + "/")):
+    if not (here == root or here.startswith(root + "/")):
         frappe.throw(_("Path is outside the configured root folder"))
 
-    return {"path": target, "root": root, "entries": NextcloudClient().list_folder(target)}
+    return {"path": here, "root": root,
+            "entries": NextcloudClient(target).list_folder(here)}
 
 
 @frappe.whitelist()
@@ -164,7 +169,8 @@ def attach_remote(doctype, docname, remote_path, is_private=1):
     Permission is checked against the document being attached to, matching the
     rule used when serving the file back.
     """
-    from tabadul.attachments import PENDING, PROXY_ROUTE, settings
+    from tabadul.attachments import (PENDING, PROXY_ROUTE, instance_for_doc,
+                                     settings)
 
     if frappe.session.user == "Guest":
         raise frappe.PermissionError(_("Login required"))
@@ -174,18 +180,18 @@ def attach_remote(doctype, docname, remote_path, is_private=1):
         raise frappe.PermissionError(
             _("Not permitted to attach files to {0} {1}").format(doctype, docname))
 
-    s = settings()
-    if not s.get("enable_upload_picker"):
+    if not settings().get("enable_upload_picker"):
         # Hiding the button is presentation, not a control. Both endpoints
         # refuse independently so a crafted request cannot browse the tree.
         raise frappe.PermissionError(
             _("Attaching existing Nextcloud files is disabled"))
 
-    root = "/" + (s.get("storage_root") or "Frappe").strip("/")
+    target = instance_for_doc(doctype, docname)
+    root = "/" + (target.get("storage_root") or "Frappe").strip("/")
     if not (remote_path == root or remote_path.startswith(root + "/")):
         frappe.throw(_("Path is outside the configured root folder"))
 
-    client = NextcloudClient()
+    client = NextcloudClient(target)
     if not client.path_exists(remote_path):
         frappe.throw(_("That file no longer exists on Nextcloud: {0}").format(remote_path),
                      exc=frappe.DoesNotExistError)
@@ -201,6 +207,8 @@ def attach_remote(doctype, docname, remote_path, is_private=1):
         "file_url": f"{PROXY_ROUTE}?file={PENDING}",
     })
     doc.flags.tabadul_remote_path = remote_path
+    doc.flags.tabadul_instance = (
+        target.name if target.doctype == "Nextcloud Instance" else None)
     doc.insert(ignore_permissions=True)
 
     return {"file": doc.name, "file_url": doc.file_url, "remote_path": remote_path}

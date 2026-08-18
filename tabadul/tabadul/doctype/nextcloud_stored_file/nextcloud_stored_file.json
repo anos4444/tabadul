@@ -9,6 +9,7 @@
  "field_order": [
   "file",
   "remote_path",
+  "instance",
   "col_a",
   "attached_to_doctype",
   "attached_to_name",
@@ -63,6 +64,15 @@
    "fieldname": "file_size",
    "fieldtype": "Int",
    "label": "Size (bytes)"
+  },
+  {
+   "fieldname": "instance",
+   "fieldtype": "Link",
+   "options": "Nextcloud Instance",
+   "label": "Nextcloud",
+   "in_list_view": 1,
+   "search_index": 1,
+   "description": "Which server holds this file. Blank means the default configuration."
   }
  ],
  "permissions": [

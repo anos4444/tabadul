@@ -60,33 +60,112 @@ def settings():
     return frappe.get_cached_doc("Nextcloud Settings")
 
 
-def rule_for(doctype):
-    """The routing rule for a doctype, or None when it is not routed."""
+def company_of(doctype, name):
+    """The company on a document, when it has one.
+
+    Many doctypes have no company at all — ToDo, Data Import, File. Those fall
+    through to the general rule rather than being refused, because a per-company
+    setup should not stop unrelated attachments from working.
+    """
+    if not (doctype and name):
+        return None
+    try:
+        meta = frappe.get_meta(doctype)
+    except Exception:
+        return None
+    if not meta.has_field("company"):
+        return None
+    return frappe.db.get_value(doctype, name, "company")
+
+
+def rule_for(doctype, company=None):
+    """The routing rule for a doctype, or None when it is not routed.
+
+    A rule naming a company beats a general rule for the same doctype, so one
+    ERP serving several companies can send each company's documents to its own
+    Nextcloud while everything else follows a single default.
+    """
     if not doctype:
         return None
     s = settings()
     if not s.get("storage_enabled"):
         return None
-    for rule in s.get("storage_rules") or []:
-        if rule.document_type == doctype and rule.enabled:
-            return rule
+
+    candidates = [r for r in (s.get("storage_rules") or [])
+                  if r.document_type == doctype and r.enabled]
+    if not candidates:
+        return None
+
+    if company:
+        for r in candidates:
+            if r.get("company") == company:
+                return r
+    for r in candidates:
+        if not r.get("company"):
+            return r
+    # Only company-specific rules exist and none matched: this document is not
+    # routed. Falling back to another company's instance would be worse than
+    # leaving it on local disk.
     return None
 
 
-def should_route(file_doc) -> bool:
+def instance_for(rule):
+    """The Nextcloud a rule points at.
+
+    Order: the rule's own instance, then the site default, then the connection
+    configured directly on Settings. That last step is what keeps installs
+    predating multi-tenant working untouched.
+    """
+    if rule is not None and rule.get("instance"):
+        return frappe.get_cached_doc("Nextcloud Instance", rule.get("instance"))
+    s = settings()
+    if s.get("default_instance"):
+        return frappe.get_cached_doc("Nextcloud Instance", s.get("default_instance"))
+    return s
+
+
+def instance_for_doc(doctype=None, name=None):
+    """The Nextcloud a given document's attachments belong to.
+
+    Used by the picker so browsing shows the tree the file would actually be
+    filed in, rather than the default instance's tree while the document is
+    routed elsewhere.
+    """
+    rule = rule_for(doctype, company_of(doctype, name)) if doctype else None
+    return instance_for(rule)
+
+
+def client_for(rule=None, instance_name=None):
+    if instance_name:
+        return NextcloudClient(frappe.get_cached_doc("Nextcloud Instance", instance_name))
+    return NextcloudClient(instance_for(rule))
+
+
+def route_for(file_doc):
+    """The rule that governs this file, or None when it stays on local disk.
+
+    Returns the rule rather than a boolean so the caller resolves it once:
+    with company-aware matching, deciding "is this routed?" and "where to?"
+    are the same lookup, and doing it twice invites the two answers to differ.
+    """
     if getattr(file_doc, "is_folder", 0):
-        return False
+        return None
     # No attachment target means a site asset, not a document's file.
     if not file_doc.attached_to_doctype:
-        return False
-    rule = rule_for(file_doc.attached_to_doctype)
+        return None
+    rule = rule_for(file_doc.attached_to_doctype,
+                    company_of(file_doc.attached_to_doctype, file_doc.attached_to_name))
     if not rule:
-        return False
+        return None
     if file_doc.is_private and not rule.include_private:
-        return False
+        return None
     if not file_doc.is_private and not rule.include_public:
-        return False
-    return True
+        return None
+    return rule
+
+
+def should_route(file_doc) -> bool:
+    return route_for(file_doc) is not None
 
 
 def render_folder(file_doc, rule) -> str:
@@ -98,8 +177,8 @@ def render_folder(file_doc, rule) -> str:
     outlives a renamed field should file the document somewhere predictable,
     not refuse the upload.
     """
-    s = settings()
-    template = (rule.path_template or s.get("default_path_template")
+    target = instance_for(rule)
+    template = (rule.path_template or target.get("default_path_template")
                 or "{doctype}/{name}").strip("/")
 
     context = {"doctype": file_doc.attached_to_doctype,
@@ -122,12 +201,14 @@ def render_folder(file_doc, rule) -> str:
         except (KeyError, IndexError, ValueError):
             segments.append(sanitize(seg))
 
-    root = (s.get("storage_root") or "Frappe").strip("/")
+    root = (target.get("storage_root") or "Frappe").strip("/")
     return "/" + posixpath.join(root, *[x for x in segments if x])
 
 
-def remote_path_for(file_doc) -> str:
-    rule = rule_for(file_doc.attached_to_doctype)
+def remote_path_for(file_doc, rule=None) -> str:
+    if rule is None:
+        rule = rule_for(file_doc.attached_to_doctype,
+                        company_of(file_doc.attached_to_doctype, file_doc.attached_to_name))
     return posixpath.join(render_folder(file_doc, rule),
                           sanitize(file_doc.file_name))
 
@@ -136,23 +217,29 @@ def is_remote(file_doc) -> bool:
     return bool(file_doc.file_url and file_doc.file_url.startswith(PROXY_ROUTE))
 
 
+def stored_ref(file_name):
+    """Where a file lives: its path AND which server holds it."""
+    return frappe.db.get_value("Nextcloud Stored File", {"file": file_name},
+                               ["remote_path", "instance"], as_dict=True)
+
+
 def stored_path(file_name):
     """The path we actually wrote, as recorded at upload time."""
-    return frappe.db.get_value("Nextcloud Stored File",
-                               {"file": file_name}, "remote_path")
+    row = stored_ref(file_name)
+    return row.remote_path if row else None
 
 
 # ----------------------------------------------------------------- hooks
 
 
-def _upload_with_retry(remote, content, attempts=3):
+def _upload_with_retry(remote, content, attempts=3, client=None):
     """Retry only network failures, never rejections.
 
     A 403 means the credential is wrong and will be wrong again in two
     seconds. NextcloudUnreachable is a blip worth riding out, and riding it
     out is what keeps the private-file hard fail from tripping on noise.
     """
-    client = NextcloudClient()
+    client = client or NextcloudClient()
     last = None
     for attempt in range(attempts):
         try:
@@ -173,12 +260,20 @@ def write_file(file_doc):
     invisible until someone audited the disk. Public files may fall back —
     a product image on local disk harms nobody, and blocking the upload would.
     """
-    if not should_route(file_doc):
+    rule = route_for(file_doc)
+    if rule is None:
         return file_doc.save_file_on_filesystem()
 
-    remote = remote_path_for(file_doc)
+    target = instance_for(rule)
+    remote = remote_path_for(file_doc, rule)
     try:
-        _upload_with_retry(remote, file_doc._content)
+        if target.doctype == "Nextcloud Instance" and not target.get("enabled"):
+            # Disabling an instance is deliberate, but it must not become a
+            # quiet route onto the ERP disk: a private file takes exactly the
+            # same path as an unreachable server — refused, not filed locally.
+            raise NextcloudError(
+                _("Nextcloud instance {0} is disabled").format(target.name))
+        _upload_with_retry(remote, file_doc._content, client=NextcloudClient(target))
     except (NextcloudError, NextcloudUnreachable) as e:
         if file_doc.is_private:
             frappe.log_error(
@@ -208,6 +303,10 @@ def write_file(file_doc):
         if file_doc.name else f"{PROXY_ROUTE}?file={PENDING}"
     )
     file_doc.flags.tabadul_remote_path = remote
+    # Recorded so reads and deletes reach the same server later, even if the
+    # rule is repointed at a different instance afterwards.
+    file_doc.flags.tabadul_instance = (
+        target.name if target.doctype == "Nextcloud Instance" else None)
 
     return {"file_name": posixpath.basename(remote), "file_url": file_doc.file_url}
 
@@ -217,9 +316,10 @@ def delete_file_data_content(file_doc, only_thumbnail=False):
     if not is_remote(file_doc):
         return file_doc.delete_file_from_filesystem(only_thumbnail=only_thumbnail)
 
-    remote = stored_path(file_doc.name)
-    if not remote:
+    ref = stored_ref(file_doc.name)
+    if not ref or not ref.remote_path:
         return
+    remote = ref.remote_path
 
     # Frappe's content-hash deduplication means several File rows can share one
     # stored object. Retiring it while another row still points at it would
@@ -232,8 +332,12 @@ def delete_file_data_content(file_doc, only_thumbnail=False):
             f"not retiring {remote}: {others} other attachment(s) still reference it")
         return
 
-    s = settings()
-    behaviour = s.get("delete_behaviour") or "Archive"
+    # The instance recorded at upload time, not the one the rule points at
+    # now: a rule repointed at a new server must not send us hunting for this
+    # file somewhere it was never written.
+    target = (frappe.get_cached_doc("Nextcloud Instance", ref.instance)
+              if ref.get("instance") else settings())
+    behaviour = target.get("delete_behaviour") or "Archive"
     if behaviour == "Keep":
         return
 
@@ -244,13 +348,13 @@ def delete_file_data_content(file_doc, only_thumbnail=False):
     # no way out from inside ERPNext. The failure is recorded instead, because
     # an object left behind is a cleanup task, not a reason to block work.
     try:
-        client = NextcloudClient()
+        client = NextcloudClient(target)
         if behaviour == "Delete":
             client.delete_path(remote)
             return
 
-        root = (s.get("storage_root") or "Frappe").strip("/")
-        archive = (s.get("archive_folder") or "_deleted").strip("/")
+        root = (target.get("storage_root") or "Frappe").strip("/")
+        archive = (target.get("archive_folder") or "_deleted").strip("/")
         rel = remote.lstrip("/")
         if rel.startswith(root + "/"):
             rel = rel[len(root) + 1:]
