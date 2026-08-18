@@ -47,15 +47,36 @@ def generate_password(length: int = 20) -> str:
 
 
 class NextcloudClient:
-    def __init__(self):
-        s = frappe.get_single("Nextcloud Settings")
+    def __init__(self, settings=None):
+        """Talk to the configured Nextcloud.
+
+        ``settings`` may be an unsaved Nextcloud Settings document. That matters
+        for testing a connection during save: the database still holds the OLD
+        credentials at that point, so a check that read from it would validate
+        the previous password and report success for credentials nobody is
+        about to use.
+        """
+        s = settings or frappe.get_single("Nextcloud Settings")
         if not s.base_url or not s.service_user:
             frappe.throw(_("Nextcloud settings are not configured yet"))
         self.base = s.base_url.rstrip("/")
         self.user = s.service_user
-        self.password = s.get_password("app_password")
+        self.password = self._resolve_password(s)
         self.verify = bool(s.verify_tls)
         self.settings = s
+
+    @staticmethod
+    def _resolve_password(s):
+        """Prefer a freshly typed password over the stored one.
+
+        Frappe masks a saved Password field as asterisks when the document is
+        loaded. An all-asterisk value is therefore the mask, not a password,
+        and the real one has to come from the auth table.
+        """
+        raw = s.get("app_password")
+        if raw and set(str(raw)) != {"*"}:
+            return raw
+        return s.get_password("app_password")
 
     # ------------------------------------------------------------- transport
     def _ocs(self, method, path, data=None, params=None):

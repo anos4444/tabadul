@@ -155,13 +155,23 @@ frappe.after_ajax(() => {
 	if (!frappe.ui.FileUploader.UploadOptions) return;
 
 	// Guard against double registration when the bundle is evaluated twice.
-	const already = frappe.ui.FileUploader.UploadOptions.some((o) => o.__tabadul);
-	if (already) return;
+	if (frappe.ui.FileUploader.UploadOptions.some((o) => o.__tabadul)) return;
+	if (frappe.session.user === "Guest") return;
 
-	frappe.ui.FileUploader.UploadOptions.push({
-		__tabadul: true,
-		label: __("Nextcloud"),
-		icon: tabadul.NEXTCLOUD_ICON,
-		action: tabadul.open_nextcloud_picker,
+	// Off unless switched on. Browsing the service account's folder tree is a
+	// wider capability than attaching a file, and normal uploads already reach
+	// Nextcloud without it, so the button earns its place rather than assuming it.
+	frappe.call({
+		method: "tabadul.api.get_picker_settings",
+		callback: (r) => {
+			if (!r.message || !r.message.enabled) return;
+			if (frappe.ui.FileUploader.UploadOptions.some((o) => o.__tabadul)) return;
+			frappe.ui.FileUploader.UploadOptions.push({
+				__tabadul: true,
+				label: __("Nextcloud"),
+				icon: tabadul.NEXTCLOUD_ICON,
+				action: tabadul.open_nextcloud_picker,
+			});
+		},
 	});
 });

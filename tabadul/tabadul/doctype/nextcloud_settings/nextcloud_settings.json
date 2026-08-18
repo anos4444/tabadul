@@ -27,6 +27,7 @@
   "delete_behaviour",
   "archive_folder",
   "sec_rules",
+  "enable_upload_picker",
   "storage_rules"
  ],
  "fields": [
@@ -160,6 +161,14 @@
    "label": "Storage rules",
    "options": "Nextcloud Storage Rule",
    "depends_on": "storage_enabled"
+  },
+  {
+   "fieldname": "enable_upload_picker",
+   "fieldtype": "Check",
+   "label": "Allow attaching existing Nextcloud files",
+   "default": "0",
+   "depends_on": "storage_enabled",
+   "description": "Adds a Nextcloud button to the upload dialog so users can browse the service account's folders and attach a file that is already there. Off by default: normal uploads already go to Nextcloud, and this lets users see the folder tree."
   }
  ],
  "permissions": [

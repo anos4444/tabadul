@@ -121,3 +121,30 @@ Partially cancelled. Not deleted: {0},أُلغيت جزئيًا. لم تُحذف
 Share package expired: {0},انتهت صلاحية حزمة المشاركة: {0}
 "<p>The package <b>{0}</b> expired on {1}, and recipients can no longer reach it.</p>",<p>انتهت صلاحية الحزمة <b>{0}</b> بتاريخ {1}، ولم يعد بإمكان المستلمين الوصول إليها.</p>
 The share was deleted directly in Nextcloud,حُذفت المشاركة من Nextcloud مباشرة
+Allow attaching existing Nextcloud files,السماح بإرفاق ملفات موجودة على Nextcloud
+"Adds a Nextcloud button to the upload dialog so users can browse the service account's folders and attach a file that is already there. Off by default: normal uploads already go to Nextcloud, and this lets users see the folder tree.",يضيف زر Nextcloud إلى نافذة الرفع ليتمكن المستخدم من تصفح مجلدات حساب الخدمة وإرفاق ملف موجود مسبقًا. معطّل افتراضيًا: الرفع العادي يذهب إلى Nextcloud أصلًا، وهذا الخيار يتيح رؤية شجرة المجلدات.
+Attaching existing Nextcloud files is disabled,إرفاق الملفات الموجودة على Nextcloud معطّل
+Connected as {0} · checked {1},متصل باسم {0} · فُحص {1}
+Not connected — {0} · checked {1},غير متصل — {0} · فُحص {1}
+Not configured,غير مضبوط
+Attachment storage was not enabled: the Nextcloud connection failed.<br><br>{0},لم يُفعَّل تخزين المرفقات: فشل الاتصال بـ Nextcloud.<br><br>{0}
+Cannot enable storage,تعذّر تفعيل التخزين
+Test Connection,اختبار الاتصال
+Contacting Nextcloud…,جارٍ الاتصال بـ Nextcloud…
+Set the server URL and service account first.,أدخل عنوان الخادم وحساب الخدمة أولًا.
+Attach from Nextcloud,إرفاق من Nextcloud
+"Save the document first, then attach from Nextcloud.",احفظ المستند أولًا ثم أرفق من Nextcloud.
+Private files are only served to users who may read this document.,الملفات الخاصة تُقدَّم فقط لمن يملك صلاحية قراءة هذا المستند.
+Up one level,مستوى للأعلى
+This folder is empty.,هذا المجلد فارغ.
+Could not reach Nextcloud.,تعذّر الوصول إلى Nextcloud.
+No response from the server.,لا يوجد رد من الخادم.
+Loading…,جارٍ التحميل…
+Attaching…,جارٍ الإرفاق…
+Attached {0},أُرفق {0}
+Could not list the folder ({0}),تعذّر عرض محتويات المجلد ({0})
+Path is outside the configured root folder,المسار خارج المجلد الجذر المحدد
+That file no longer exists on Nextcloud: {0},هذا الملف لم يعد موجودًا على Nextcloud: {0}
+Not permitted to attach files to {0} {1},لا تملك صلاحية إرفاق ملفات على {0} {1}
+"This file is private and could not be stored on Nextcloud, so it has not been saved. It was not written to the server disk. Please retry once the connection is restored.<br><br>{0}",هذا الملف خاص وتعذّر تخزينه على Nextcloud، ولذلك لم يُحفظ. ولم يُكتب على قرص الخادم. أعد المحاولة بعد استعادة الاتصال.<br><br>{0}
+Private file not stored,لم يُخزَّن الملف الخاص

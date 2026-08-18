@@ -141,6 +141,10 @@ def browse(path=None):
         raise frappe.PermissionError(_("Login required"))
 
     s = settings()
+    if not s.get("enable_upload_picker"):
+        raise frappe.PermissionError(
+            _("Attaching existing Nextcloud files is disabled"))
+
     root = "/" + (s.get("storage_root") or "Frappe").strip("/")
     target = path or root
 
@@ -171,6 +175,12 @@ def attach_remote(doctype, docname, remote_path, is_private=1):
             _("Not permitted to attach files to {0} {1}").format(doctype, docname))
 
     s = settings()
+    if not s.get("enable_upload_picker"):
+        # Hiding the button is presentation, not a control. Both endpoints
+        # refuse independently so a crafted request cannot browse the tree.
+        raise frappe.PermissionError(
+            _("Attaching existing Nextcloud files is disabled"))
+
     root = "/" + (s.get("storage_root") or "Frappe").strip("/")
     if not (remote_path == root or remote_path.startswith(root + "/")):
         frappe.throw(_("Path is outside the configured root folder"))
@@ -194,3 +204,19 @@ def attach_remote(doctype, docname, remote_path, is_private=1):
     doc.insert(ignore_permissions=True)
 
     return {"file": doc.name, "file_url": doc.file_url, "remote_path": remote_path}
+
+
+@frappe.whitelist()
+def get_picker_settings():
+    """Whether the upload dialog should offer a Nextcloud source.
+
+    Deliberately tiny and free of credentials: it runs on every Desk page load
+    for every user.
+    """
+    if frappe.session.user == "Guest":
+        return {"enabled": False}
+    try:
+        s = frappe.get_cached_doc("Nextcloud Settings")
+    except Exception:
+        return {"enabled": False}
+    return {"enabled": bool(s.get("storage_enabled") and s.get("enable_upload_picker"))}
