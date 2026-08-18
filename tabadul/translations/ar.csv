@@ -17,6 +17,7 @@ Attached {0},أُرفق {0}
 Attaching existing Nextcloud files is disabled,إرفاق الملفات الموجودة على Nextcloud معطّل
 Attaching…,جارٍ الإرفاق…
 Attachment storage,تخزين المرفقات
+Attachment storage is switched off for the site.,تخزين المرفقات معطّل على مستوى الموقع.
 Attachment storage was not enabled: the Nextcloud connection failed.<br><br>{0},لم يُفعَّل تخزين المرفقات: فشل الاتصال بـ Nextcloud.<br><br>{0}
 Audit,الأثر
 Awaiting manual delivery,بانتظار التسليم اليدوي
@@ -86,6 +87,7 @@ Nextcloud Settings,إعدادات Nextcloud
 Nextcloud instance,خادم نكست كلاود
 Nextcloud instance {0} is disabled,خادم نكست كلاود {0} معطّل
 Nextcloud settings are not configured yet,لم تُضبط إعدادات Nextcloud بعد
+"No enabled rule matches this doctype and company, so its attachments stay on the ERP server.",لا توجد قاعدة مفعّلة تطابق هذا النوع من المستندات وهذه الشركة، لذا تبقى مرفقاته على خادم النظام.
 No remote path is recorded for this file: {0},لا يوجد مسار مسجَّل لهذا الملف على الخادم: {0}
 No response from the server.,لا يوجد رد من الخادم.
 "No storage rule is configured for this doctype, so nothing can move.",لا توجد قاعدة تخزين لهذا النوع من المستندات، لذا لن يُنقل أي ملف.

@@ -215,6 +215,65 @@ def attach_remote(doctype, docname, remote_path, is_private=1):
 
 
 @frappe.whitelist()
+def explain_routing(doctype, company=None, docname=None):
+    """Where would this document's attachments go, and why.
+
+    With per-company rules, "which Nextcloud does this land on" stops being
+    obvious from reading the settings form: several rules can match a doctype
+    and only one wins. This answers it directly, without uploading anything.
+
+    Read-only and credential-free — it names the instance, never its password.
+    """
+    frappe.only_for("System Manager")
+
+    from tabadul.attachments import company_of, instance_for, rule_for, settings
+
+    s = settings()
+    if company is None and docname:
+        company = company_of(doctype, docname)
+
+    rule = rule_for(doctype, company)
+    target = instance_for(rule)
+    is_instance = target.doctype == "Nextcloud Instance"
+
+    candidates = [
+        {"company": r.get("company") or None,
+         "instance": r.get("instance") or None,
+         "enabled": bool(r.enabled)}
+        for r in (s.get("storage_rules") or []) if r.document_type == doctype
+    ]
+
+    if not rule:
+        return {
+            "doctype": doctype,
+            "company": company,
+            "routed": False,
+            "reason": (_("Attachment storage is switched off for the site.")
+                       if not s.get("storage_enabled")
+                       else _("No enabled rule matches this doctype and company, "
+                              "so its attachments stay on the ERP server.")),
+            "candidate_rules": candidates,
+        }
+
+    return {
+        "doctype": doctype,
+        "company": company,
+        "routed": True,
+        "matched_rule_company": rule.get("company") or None,
+        "instance": target.name if is_instance else None,
+        "instance_enabled": bool(target.get("enabled")) if is_instance else True,
+        "using_settings_connection": not is_instance,
+        "base_url": target.get("base_url"),
+        "storage_root": target.get("storage_root"),
+        "path_template": rule.path_template or target.get("default_path_template"),
+        "include_private": bool(rule.include_private),
+        "include_public": bool(rule.include_public),
+        "delete_behaviour": target.get("delete_behaviour"),
+        "candidate_rules": candidates,
+    }
+
+
+@frappe.whitelist()
 def get_picker_settings():
     """Whether the upload dialog should offer a Nextcloud source.
 

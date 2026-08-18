@@ -594,6 +594,78 @@ class TestMultiTenant(unittest.TestCase):
         self.assertEqual(used.get("deleted"), "/Frappe/X/y.pdf")
 
 
+class TestExplainRouting(unittest.TestCase):
+    """The diagnostic must report what routing actually does, not a guess.
+
+    It reimplements nothing: if it ever disagreed with the code that stores
+    files, it would be worse than having no diagnostic at all.
+    """
+
+    def _settings(self, rules):
+        return _Stub(storage_enabled=1, storage_rules=rules, default_instance=None,
+                     storage_root="Frappe", default_path_template="{doctype}/{name}",
+                     base_url="https://nc.example", delete_behaviour="Archive",
+                     doctype="Nextcloud Settings")
+
+    def test_it_reports_the_same_rule_the_storage_path_would_use(self):
+        from tabadul import api, attachments
+
+        general = _Stub(document_type="Sales Invoice", enabled=1, company=None,
+                        instance=None, path_template=None,
+                        include_private=1, include_public=0)
+        beta = _Stub(document_type="Sales Invoice", enabled=1, company="Beta Co",
+                     instance=None, path_template="Beta/{name}",
+                     include_private=1, include_public=1)
+        s = self._settings([general, beta])
+
+        with mock.patch.object(attachments, "settings", return_value=s), \
+             mock.patch.object(api.frappe, "only_for", lambda *a, **k: None):
+            out = api.explain_routing("Sales Invoice", company="Beta Co")
+            self.assertTrue(out["routed"])
+            self.assertEqual(out["matched_rule_company"], "Beta Co")
+            self.assertEqual(out["path_template"], "Beta/{name}")
+            self.assertTrue(out["using_settings_connection"])
+            # It must agree with the real resolver, not approximate it.
+            self.assertIs(attachments.rule_for("Sales Invoice", "Beta Co"), beta)
+
+            # NEGATIVE CONTROL: another company must resolve to the general
+            # rule, or the diagnostic would report "Beta" for everyone.
+            other = api.explain_routing("Sales Invoice", company="Alpha Co")
+            self.assertEqual(other["matched_rule_company"], None)
+            self.assertEqual(other["path_template"], "{doctype}/{name}")
+            self.assertEqual(other["include_public"], False)
+
+    def test_it_says_plainly_when_nothing_is_routed(self):
+        from tabadul import api, attachments
+
+        s = self._settings([])
+        with mock.patch.object(attachments, "settings", return_value=s), \
+             mock.patch.object(api.frappe, "only_for", lambda *a, **k: None):
+            out = api.explain_routing("ToDo")
+            self.assertFalse(out["routed"])
+            self.assertIn("stay on the ERP server", out["reason"])
+
+        s.storage_enabled = 0
+        with mock.patch.object(attachments, "settings", return_value=s), \
+             mock.patch.object(api.frappe, "only_for", lambda *a, **k: None):
+            self.assertIn("switched off", api.explain_routing("ToDo")["reason"])
+
+    def test_it_never_returns_the_password(self):
+        from tabadul import api, attachments
+
+        s = self._settings([_Stub(document_type="ToDo", enabled=1, company=None,
+                                  instance=None, path_template=None,
+                                  include_private=1, include_public=1)])
+        s.app_password = "super-secret-app-password"
+        with mock.patch.object(attachments, "settings", return_value=s), \
+             mock.patch.object(api.frappe, "only_for", lambda *a, **k: None):
+            out = api.explain_routing("ToDo")
+        self.assertNotIn("super-secret-app-password", repr(out))
+        # NEGATIVE CONTROL: it does return the connection's identity, so the
+        # absence above is not simply an empty payload.
+        self.assertEqual(out["base_url"], "https://nc.example")
+
+
 class TestModulesImport(unittest.TestCase):
     """The cheapest check there is, and it would have caught a shipped 500.
 
