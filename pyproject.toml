@@ -1,6 +1,6 @@
 [project]
 name = "tabadul"
-authors = [{name = "AAA Consulting", email = "anas.abdullah@gmail.com"}]
+authors = [{name = "ANAS ABDULLA", email = "anas.abdullah@gmail.com"}]
 description = "Drive a Nextcloud from Frappe: packaged, expiring, revocable external file shares."
 requires-python = ">=3.10"
 version = "0.1.0"
