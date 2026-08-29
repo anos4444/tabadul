@@ -228,3 +228,10 @@ imply per-person download tracking.
 The link and the password must not travel the same channel, or the two factors
 collapse into one. Nextcloud emails the link; tabadul shows the password once,
 formatted for the operator to send by another route.
+
+## License
+
+MIT — see `license.txt`.
+
+Frappe Framework is MIT and ERPNext is GPL-3.0; tabadul touches ERPNext only
+through an optional `Company` link, so nothing here needs copyleft.

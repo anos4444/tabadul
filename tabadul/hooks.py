@@ -2,8 +2,8 @@ app_name = "tabadul"
 app_title = "Tabadul"
 app_publisher = "AAA Consulting"
 app_description = "Drive a Nextcloud from Frappe: packaged, expiring, revocable external file shares."
-app_email = "a.abdulla@aaacons.com"
-app_license = "Proprietary"
+app_email = "anas.abdullah@gmail.com"
+app_license = "MIT"
 
 add_to_apps_screen = [
     {
