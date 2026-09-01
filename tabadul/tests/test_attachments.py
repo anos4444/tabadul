@@ -8,6 +8,7 @@ The pure-function tests need no site. The integration tests are skipped unless
 a storage rule is actually configured, and say so rather than passing quietly.
 """
 
+import ast
 import json
 import unicodedata
 import contextlib
@@ -858,6 +859,44 @@ class TestShareStatusLiterals(unittest.TestCase):
         for label in ("مسودة", "نشطة", "ملغاة", "منتهية"):
             self.assertNotIn(f"status === '{label}'", self.js,
                              f"comparing status against the translated label {label!r}")
+
+
+class TestTranslationImports(unittest.TestCase):
+    """Every module that calls _() must import it.
+
+    share_package.py used _() eleven times and never imported it, so
+    create_shares() raised NameError while building its summary — after the
+    shares had been created on Nextcloud and committed. The passwords are
+    returned once and never stored, so that crash destroyed them: two live
+    shares nobody could open. Every _() here is on an error or summary path,
+    which is exactly why no test reached one.
+    """
+
+    def test_every_module_using_gettext_imports_it(self):
+        root = pathlib.Path(__file__).resolve().parents[1]
+        offenders, checked = [], 0
+        for path in sorted(root.rglob("*.py")):
+            source = path.read_text(encoding="utf-8")
+            tree = ast.parse(source)
+            uses = any(
+                isinstance(n, ast.Call) and isinstance(n.func, ast.Name)
+                and n.func.id == "_"
+                for n in ast.walk(tree)
+            )
+            if not uses:
+                continue
+            checked += 1
+            imported = any(
+                isinstance(n, ast.ImportFrom)
+                and any(a.name == "_" for a in n.names)
+                for n in ast.walk(tree)
+            )
+            if not imported:
+                offenders.append(str(path.relative_to(root)))
+
+        # Negative control: if this found nothing to check, it proves nothing.
+        self.assertGreater(checked, 0, "no module calls _(); the scan is vacuous")
+        self.assertEqual(offenders, [], f"_() used without importing it: {offenders}")
 
 
 if __name__ == "__main__":
