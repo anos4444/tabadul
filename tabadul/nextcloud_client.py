@@ -33,17 +33,40 @@ class NextcloudUnreachable(NextcloudError):
     """Network-level failure — worth retrying, unlike a 403."""
 
 
+# Ambiguous glyphs are excluded on purpose: the operator reads the password
+# aloud or copies it into WhatsApp, and 0/O and 1/l/I cause support calls.
+_LOWER = string.ascii_lowercase.replace("l", "").replace("o", "")
+_UPPER = string.ascii_uppercase.replace("I", "").replace("O", "")
+_DIGITS = "23456789"
+_SYMBOLS = "!#%*+-=?"
+_CLASSES = (_LOWER, _UPPER, _DIGITS, _SYMBOLS)
+
+
 def generate_password(length: int = 20) -> str:
     """A password a human can retype off a phone screen.
 
-    Ambiguous glyphs are excluded on purpose: the operator reads this aloud or
-    copies it into WhatsApp, and 0/O and 1/l/I cause support calls. Entropy is
-    still ~110 bits at length 20.
+    One character is drawn from every class before the rest is filled at
+    random. Drawing all 20 from a single pooled alphabet looks equivalent and
+    is not: it leaves roughly a 7% chance of no digit at all, and Nextcloud's
+    password policy rejects such a password with "Password needs to contain at
+    least one numeric character". That failure is per recipient and random, so
+    a package would issue three shares and silently fail the fourth.
+
+    Entropy is still ~110 bits at length 20.
     """
-    alphabet = (string.ascii_lowercase.replace("l", "").replace("o", "")
-                + string.ascii_uppercase.replace("I", "").replace("O", "")
-                + "23456789" + "!#%*+-=?")
-    return "".join(secrets.choice(alphabet) for _ in range(length))
+    if length < len(_CLASSES):
+        raise ValueError(f"length must be at least {len(_CLASSES)}")
+
+    alphabet = "".join(_CLASSES)
+    chars = [secrets.choice(c) for c in _CLASSES]
+    chars += [secrets.choice(alphabet) for _ in range(length - len(_CLASSES))]
+
+    # Fisher-Yates with secrets, so the guaranteed characters do not sit in a
+    # fixed order at the front.
+    for i in range(len(chars) - 1, 0, -1):
+        j = secrets.randbelow(i + 1)
+        chars[i], chars[j] = chars[j], chars[i]
+    return "".join(chars)
 
 
 class NextcloudClient:

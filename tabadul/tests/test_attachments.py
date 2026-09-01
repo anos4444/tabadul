@@ -899,5 +899,39 @@ class TestTranslationImports(unittest.TestCase):
         self.assertEqual(offenders, [], f"_() used without importing it: {offenders}")
 
 
+class TestGeneratedPassword(unittest.TestCase):
+    """Every generated password must satisfy Nextcloud's password policy.
+
+    The generator drew all 20 characters from one pooled alphabet, which left
+    about a 7% chance of no digit — and Nextcloud answers that with "Password
+    needs to contain at least one numeric character". The share for that one
+    recipient failed while the others succeeded, at random, per package.
+    """
+
+    SAMPLE = 500
+
+    def setUp(self):
+        from tabadul.nextcloud_client import generate_password
+
+        self.passwords = [generate_password() for _ in range(self.SAMPLE)]
+
+    def test_every_password_satisfies_the_policy(self):
+        for pw in self.passwords:
+            self.assertEqual(len(pw), 20)
+            self.assertTrue(any(c.isdigit() for c in pw), f"no digit in {pw!r}")
+            self.assertTrue(any(c.islower() for c in pw), f"no lowercase in {pw!r}")
+            self.assertTrue(any(c.isupper() for c in pw), f"no uppercase in {pw!r}")
+
+    def test_ambiguous_glyphs_stay_excluded(self):
+        """Negative control: the policy fix must not smuggle 0/O/1/l/I back in."""
+        for pw in self.passwords:
+            self.assertFalse(set(pw) & set("0O1lI"), f"ambiguous glyph in {pw!r}")
+
+    def test_passwords_are_not_repeated(self):
+        """A generator that satisfied the policy by returning a constant would
+        pass every check above."""
+        self.assertEqual(len(set(self.passwords)), self.SAMPLE)
+
+
 if __name__ == "__main__":
     unittest.main()
