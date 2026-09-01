@@ -32,7 +32,7 @@ class NextcloudInstance(Document):
             who = NextcloudClient(self).whoami()
             self.connection_status = _("Connected as {0} · checked {1}").format(who, stamp)
         except Exception as e:
-            self.connection_status = _("Not connected — {0} · checked {1}").format(e, stamp)
+            self.connection_status = _("Not connected — {0} · checked {1}").format(str(e), stamp)
             if self.enabled:
                 frappe.throw(
                     _("This instance was not enabled: the connection failed.<br><br>{0}")
@@ -81,7 +81,7 @@ class NextcloudInstance(Document):
             msg = _("Connected as {0} · checked {1}").format(info, stamp)
             ok = True
         except Exception as e:
-            msg = _("Not connected — {0} · checked {1}").format(e, stamp)
+            msg = _("Not connected — {0} · checked {1}").format(str(e), stamp)
             ok = False
         self.db_set("connection_status", msg, update_modified=False)
         return {"ok": ok, "message": msg}

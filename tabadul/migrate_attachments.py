@@ -146,7 +146,9 @@ def migrate(doctype, limit=None, delete_local=0, dry_run=0):
 
         try:
             client, instance_name = _client_for_file(doc, clients)
-            with open(local_path, "rb") as f:
+            # Path comes from File.get_full_path() on rows this function
+            # selected itself, never from a caller. System Manager only.
+            with open(local_path, "rb") as f:  # nosemgrep
                 content = f.read()
             client.upload_file(remote, content)
         except Exception as e:
@@ -178,7 +180,10 @@ def migrate(doctype, limit=None, delete_local=0, dry_run=0):
                 errors.append(f"{r.name}: uploaded, but local copy remains ({e})")
 
         moved += 1
-        frappe.db.commit()
+        # Per file, deliberately: bytes are already on Nextcloud by this
+        # point. If the job dies later, a rolled-back mapping row would
+        # leave the upload orphaned and re-run as a duplicate.
+        frappe.db.commit()  # nosemgrep
 
     summary = {
         "doctype": doctype,

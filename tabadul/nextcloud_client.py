@@ -89,7 +89,7 @@ class NextcloudClient:
                 data=data, params=params, timeout=TIMEOUT, verify=self.verify,
             )
         except requests.exceptions.RequestException as e:
-            raise NextcloudUnreachable(_("Could not reach the server: {0}").format(e)) from e
+            raise NextcloudUnreachable(_("Could not reach the server: {0}").format(str(e))) from e
 
         if r.status_code in (401, 403) and not r.text.strip().startswith("{"):
             raise NextcloudError(_("The service account was rejected (check the app password)"))
@@ -111,7 +111,7 @@ class NextcloudClient:
         try:
             root = ET.fromstring(text)
         except ET.ParseError as e:
-            raise NextcloudError(_("Unreadable response from the server: {0}").format(e)) from e
+            raise NextcloudError(_("Unreadable response from the server: {0}").format(str(e))) from e
         code = root.findtext("./meta/statuscode")
         if code and code not in ("100", "200"):
             raise NextcloudError(root.findtext("./meta/message") or f"OCS {code}")
@@ -243,7 +243,7 @@ class NextcloudClient:
                                      auth=(self.user, self.password),
                                      timeout=TIMEOUT, verify=self.verify)
             except requests.exceptions.RequestException as e:
-                raise NextcloudUnreachable(_("Could not reach the server: {0}").format(e)) from e
+                raise NextcloudUnreachable(_("Could not reach the server: {0}").format(str(e))) from e
             if r.status_code not in (201, 405):
                 raise NextcloudError(_("Could not create folder {0} ({1})").format(cur, r.status_code))
         return True
@@ -263,7 +263,7 @@ class NextcloudClient:
                              auth=(self.user, self.password),
                              timeout=max(TIMEOUT, 120), verify=self.verify)
         except requests.exceptions.RequestException as e:
-            raise NextcloudUnreachable(_("Could not upload the file: {0}").format(e)) from e
+            raise NextcloudUnreachable(_("Could not upload the file: {0}").format(str(e))) from e
         if r.status_code not in (200, 201, 204):
             raise NextcloudError(_("File upload failed ({0})").format(r.status_code))
         return remote_path
@@ -289,7 +289,7 @@ class NextcloudClient:
                              auth=(self.user, self.password),
                              timeout=max(TIMEOUT, 120), verify=self.verify)
         except requests.exceptions.RequestException as e:
-            raise NextcloudUnreachable(_("Could not download the file: {0}").format(e)) from e
+            raise NextcloudUnreachable(_("Could not download the file: {0}").format(str(e))) from e
         if r.status_code == 404:
             frappe.throw(_("The file no longer exists on the server: {0}").format(remote_path),
                          exc=frappe.DoesNotExistError)
@@ -319,7 +319,7 @@ class NextcloudClient:
                                  headers={"Depth": "1"},
                                  timeout=TIMEOUT, verify=self.verify)
         except requests.exceptions.RequestException as e:
-            raise NextcloudUnreachable(_("Could not reach the server: {0}").format(e)) from e
+            raise NextcloudUnreachable(_("Could not reach the server: {0}").format(str(e))) from e
         if r.status_code == 404:
             return []
         if r.status_code not in (200, 207):

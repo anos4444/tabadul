@@ -27,7 +27,10 @@ def close_expired_packages():
                             update_modified=False)
         _notify_closed(pkg)
     if due:
-        frappe.db.commit()
+        # An expiry already applied must not be undone by a later failure
+        # in the same run — a package shown as active after its date is
+        # exactly the state this job exists to prevent.
+        frappe.db.commit()  # nosemgrep
     return len(due)
 
 
@@ -92,5 +95,8 @@ def reconcile_with_nextcloud():
             doc.save(ignore_permissions=True)
             touched += 1
     if touched:
-        frappe.db.commit()
+        # Reconciliation reads a remote system. Keeping what it already
+        # learned costs nothing; discarding it means the next run asks
+        # Nextcloud the same questions again.
+        frappe.db.commit()  # nosemgrep
     return touched

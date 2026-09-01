@@ -141,9 +141,14 @@ tabadul.open_nextcloud_picker = function ({ doctype, docname, dialog, uploader }
 					message: __("Attached {0}", [remote_path.split("/").pop()]),
 					indicator: "green",
 				});
-				// Refresh the sidebar so the new attachment appears without a reload.
-				if (cur_frm && cur_frm.doc && cur_frm.doc.name === docname) {
-					cur_frm.reload_doc();
+				// Refresh the sidebar so the new attachment appears without a
+				// reload. The deprecated global form handle is avoided; the upload
+				// handler is handed doctype/docname, so reach the open form through
+				// the registry and refresh only the document we attached to.
+				const view = frappe.views.formview[doctype];
+				const frm = view && view.frm;
+				if (frm && frm.doc && frm.doc.name === docname) {
+					frm.reload_doc();
 				}
 			},
 		});

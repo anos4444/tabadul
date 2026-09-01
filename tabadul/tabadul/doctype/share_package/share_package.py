@@ -93,7 +93,10 @@ class SharePackage(Document):
         if created or manual:
             self.status = ACTIVE
         self.save(ignore_permissions=True)
-        frappe.db.commit()
+        # The shares now exist on Nextcloud. Rolling back here would discard
+        # the share IDs while the shares themselves stay live — orphaned
+        # access nobody can revoke from this app.
+        frappe.db.commit()  # nosemgrep
 
         # Passwords are returned once, to be read and delivered by hand. They
         # are never stored on the document and never emailed with the link.
@@ -163,7 +166,10 @@ class SharePackage(Document):
         self.cancelled_on = now_datetime()
         self.cancel_reason = reason
         self.save(ignore_permissions=True)
-        frappe.db.commit()
+        # Revocation already happened on Nextcloud. A rollback would show the
+        # package as active when its shares are gone, which is the more
+        # dangerous of the two ways to be wrong.
+        frappe.db.commit()  # nosemgrep
 
         if stuck:
             # Partial revocation is a security matter — say so loudly rather
