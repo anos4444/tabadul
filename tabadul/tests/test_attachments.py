@@ -8,6 +8,7 @@ The pure-function tests need no site. The integration tests are skipped unless
 a storage rule is actually configured, and say so rather than passing quietly.
 """
 
+import json
 import unicodedata
 import contextlib
 import pathlib
@@ -824,6 +825,39 @@ class TestDownloadPermission(unittest.TestCase):
                 download_attachment("any-file-name")
         finally:
             frappe.set_user(original)
+
+
+class TestShareStatusLiterals(unittest.TestCase):
+    """The form script must compare the STORED status, not the Arabic label.
+
+    share_package.js compared frm.doc.status against 'مسودة' and 'نشطة' while
+    the doctype stores 'Draft' and 'Active'. Nothing errored — the comparison
+    was simply never true, so the Create shares and Cancel buttons never
+    rendered on any site and the app's main action was unreachable from the UI.
+    The Python tests could not see it: they call create_shares() directly.
+    """
+
+    def setUp(self):
+        root = pathlib.Path(__file__).resolve().parents[1]
+        self.js = (root / "tabadul" / "doctype" / "share_package"
+                   / "share_package.js").read_text(encoding="utf-8")
+        schema = json.loads((root / "tabadul" / "doctype" / "share_package"
+                             / "share_package.json").read_text(encoding="utf-8"))
+        self.options = [o for o in next(
+            f for f in schema["fields"] if f["fieldname"] == "status"
+        )["options"].split("\n") if o]
+
+    def test_every_status_option_is_used_verbatim(self):
+        self.assertTrue(self.options, "status field lost its options")
+        for option in self.options:
+            self.assertIn(f"'{option}'", self.js,
+                          f"share_package.js never mentions the stored status {option!r}")
+
+    def test_no_arabic_status_comparison(self):
+        """Negative control: the exact shape of the original bug."""
+        for label in ("مسودة", "نشطة", "ملغاة", "منتهية"):
+            self.assertNotIn(f"status === '{label}'", self.js,
+                             f"comparing status against the translated label {label!r}")
 
 
 if __name__ == "__main__":

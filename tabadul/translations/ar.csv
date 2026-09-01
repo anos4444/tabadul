@@ -1,7 +1,9 @@
 0 = no limit,0 = بلا حد
 "<p>The package <b>{0}</b> expired on {1}, and recipients can no longer reach it.</p>",<p>انتهت صلاحية الحزمة <b>{0}</b> بتاريخ {1}، ولم يعد بإمكان المستلمين الوصول إليها.</p>
 A count only — the platform provides no record of who downloaded,عدد فقط — المنصة لا توفّر سجلًا لمن نزّل
+A separate share will be created for each recipient ({0}). Continue?,سيتم إنشاء مشاركة منفصلة لكل مستلم ({0}). متابعة؟
 "Accepts fields of the attached document, e.g. Employee/{employee_number} - {employee_name}",يقبل حقول المستند المرتبط، مثل: Employee/{employee_number} - {employee_name}
+Access revoked,أُلغي الوصول
 Active,نشطة
 "Adds a Nextcloud button to the upload dialog so users can browse the service account's folders and attach a file that is already there. Off by default: normal uploads already go to Nextcloud, and this lets users see the folder tree.",يضيف زر Nextcloud إلى نافذة الرفع ليتمكن المستخدم من تصفح مجلدات حساب الخدمة وإرفاق ملف موجود مسبقًا. معطّل افتراضيًا: الرفع العادي يذهب إلى Nextcloud أصلًا، وهذا الخيار يتيح رؤية شجرة المجلدات.
 Allow attaching existing Nextcloud files,السماح بإرفاق ملفات موجودة على Nextcloud
@@ -21,10 +23,13 @@ Attachment storage is switched off for the site.,تخزين المرفقات م�
 Attachment storage was not enabled: the Nextcloud connection failed.<br><br>{0},لم يُفعَّل تخزين المرفقات: فشل الاتصال بـ Nextcloud.<br><br>{0}
 Audit,الأثر
 Awaiting manual delivery,بانتظار التسليم اليدوي
+Cancel,إلغاء
+Cancel share,إلغاء المشاركة
 Cancellation reason,سبب الإلغاء
 Cancelled,ملغاة
 Cancelled by,ألغاها
 Cancelled on,تاريخ الإلغاء
+Cancelling…,جارٍ الإلغاء…
 Cannot enable instance,تعذّر تفعيل الخادم
 Cannot enable storage,تعذّر تفعيل التخزين
 Company,الشركة
@@ -34,6 +39,8 @@ Connection,الاتصال
 Connection failed — {0},فشل الاتصال — {0}
 Contacting Nextcloud…,جارٍ الاتصال بـ Nextcloud…
 Contents,المحتوى
+Copied,نُسخت
+Copy all,نسخ الكل
 Could not apply the download limit to this share,تعذّر ضبط حد التنزيل على هذه المشاركة
 Could not create folder {0} ({1}),تعذّر إنشاء المجلد {0} ({1})
 Could not download the file: {0},تعذّر تنزيل الملف: {0}
@@ -42,16 +49,20 @@ Could not move the file ({0}),تعذّر نقل الملف ({0})
 Could not reach Nextcloud.,تعذّر الوصول إلى Nextcloud.
 Could not reach the server: {0},تعذّر الوصول إلى الخادم: {0}
 Could not upload the file: {0},تعذّر رفع الملف: {0}
+Create shares,إنشاء المشاركة
 Created by,أنشأها
 Created on,تاريخ الإنشاء
+Creating shares…,جارٍ إنشاء المشاركات…
 Default download limit,حد التنزيل الافتراضي
 Default instance,الخادم الافتراضي
 Default path template,قالب المسار الافتراضي
 Defaults,الإعدادات الافتراضية
 Deleted folder,مجلد المحذوفات
 Document type,نوع المستند
+Done,تم
 Download count,عدد التنزيلات
 Download limit,حد التنزيل
+Downloads,التنزيلات
 Draft,مسودة
 Email,البريد الإلكتروني
 Email {0} appears more than once in the recipient list,البريد {0} مكرر في قائمة المستلمين
@@ -104,7 +115,10 @@ Only disable this on a test server,لا تُعطّله إلا على خادم ا
 Organisation,الجهة
 Package,الحزمة
 Partially cancelled. Not deleted: {0},أُلغيت جزئيًا. لم تُحذف: {0}
+Password,كلمة المرور
+Password channel,قناة كلمة المرور
 Password delivery channel,قناة تسليم كلمة المرور
+Passwords — shown once,كلمات المرور — تُعرض مرة واحدة
 Path is outside the configured root folder,المسار خارج المجلد الجذر المحدد
 Path template,قالب المسار
 Phone,هاتف
@@ -113,12 +127,16 @@ Private,خاص
 Private file not stored,لم يُخزَّن الملف الخاص
 Private files are only served to users who may read this document.,الملفات الخاصة تُقدَّم فقط لمن يملك صلاحية قراءة هذا المستند.
 Purpose,الغرض
+Reason,السبب
+Recipient,المستلم
 Recipients,المستلمون
 Remote path,المسار على الخادم
+Revoke access now,إلغاء الوصول الآن
 Root folder,المجلد الجذر
 SMS,رسالة نصية
 "Save the document first, then attach from Nextcloud.",احفظ المستند أولًا ثم أرفق من Nextcloud.
 Selected files,ملفات محددة
+Send the password through a channel other than email — WhatsApp or SMS. These will not be shown again.,أرسل كلمة المرور عبر قناة مختلفة عن البريد الإلكتروني — واتساب أو رسالة نصية. لن تُعرض هذه الكلمات مرة أخرى.
 Server URL,عنوان الخادم
 Service account,حساب الخدمة
 Set the server URL and service account first.,أدخل عنوان الخادم وحساب الخدمة أولًا.
@@ -149,7 +167,9 @@ This file is not stored on Nextcloud,هذا الملف غير مخزَّن عل�
 This folder is empty.,هذا المجلد فارغ.
 This instance was not enabled: the connection failed.<br><br>{0},لم يُفعَّل هذا الخادم: فشل الاتصال.<br><br>{0}
 This is the default instance for the site. Choose another default first.,هذا هو الخادم الافتراضي للموقع. اختر خادمًا افتراضيًا آخر أولًا.
+This package has expired and recipients can no longer reach it.,انتهت صلاحية هذه الحزمة ولم يعد المستلمون قادرين على الوصول.
 This package is cancelled,الحزمة ملغاة
+This package was cancelled by {0},أُلغيت هذه الحزمة بواسطة {0}
 Title,العنوان
 Token,الرمز
 Unreadable response from the server: {0},رد غير مفهوم من الخادم: {0}
