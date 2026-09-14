@@ -29,6 +29,10 @@ scheduler_events = {
 # additional_upload_handlers. A supported hook, not a patch.
 app_include_js = "tabadul.bundle.js"
 
+# Adds the read-only "Uploaded To Nextcloud" checkbox to File, beside the
+# Dropbox and Google Drive ones core already carries.
+after_install = "tabadul.install.after_install"
+
 # --------------------------------------------------------------- attachments
 # Frappe calls these in place of its own filesystem implementation when an app
 # defines them — see frappe/core/doctype/file/file.py, File.save_file() and

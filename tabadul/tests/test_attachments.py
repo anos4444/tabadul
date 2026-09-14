@@ -933,5 +933,49 @@ class TestGeneratedPassword(unittest.TestCase):
         self.assertEqual(len(set(self.passwords)), self.SAMPLE)
 
 
+class TestUploadedToNextcloudField(unittest.TestCase):
+    """The File checkbox must mirror core's uploaded_to_* fields, and the
+    patch must be unable to drift from after_install."""
+
+    def test_field_mirrors_the_core_pattern(self):
+        from tabadul.install import CUSTOM_FIELDS
+
+        self.assertIn("File", CUSTOM_FIELDS)
+        fields = CUSTOM_FIELDS["File"]
+        self.assertTrue(fields, "no fields declared — the check is vacuous")
+        (field,) = fields
+        self.assertEqual(field["fieldname"], "uploaded_to_nextcloud")
+        self.assertEqual(field["fieldtype"], "Check")
+        self.assertEqual(field["read_only"], 1,
+                         "writable would invite hand-editing a recorded fact")
+        self.assertEqual(field["insert_after"], "uploaded_to_google_drive",
+                         "anchor to core's own integration checkboxes")
+
+    def test_patch_reuses_the_install_definition(self):
+        """One definition. A patch with its own copy is how fresh installs and
+        upgraded sites end up with different fields."""
+        from tabadul.install import ensure_custom_fields
+        from tabadul.patches import add_uploaded_to_nextcloud
+
+        self.assertIs(add_uploaded_to_nextcloud.ensure_custom_fields,
+                      ensure_custom_fields)
+
+    def test_controller_keeps_the_flag_in_both_directions(self):
+        """The mapping controller must set the flag on insert AND clear it on
+        trash — set-only, the checkbox lies the moment a mapping is removed
+        while its File survives."""
+        root = pathlib.Path(__file__).resolve().parents[1]
+        src = (root / "tabadul" / "doctype" / "nextcloud_stored_file"
+               / "nextcloud_stored_file.py").read_text(encoding="utf-8")
+        tree = ast.parse(src)
+        cls = next(n for n in ast.walk(tree)
+                   if isinstance(n, ast.ClassDef) and n.name == "NextcloudStoredFile")
+        methods = {n.name for n in cls.body if isinstance(n, ast.FunctionDef)}
+        self.assertIn("after_insert", methods)
+        self.assertIn("on_trash", methods)
+        for needle in ('"uploaded_to_nextcloud", 1', '"uploaded_to_nextcloud", 0'):
+            self.assertIn(needle, src, f"missing write: {needle}")
+
+
 if __name__ == "__main__":
     unittest.main()
